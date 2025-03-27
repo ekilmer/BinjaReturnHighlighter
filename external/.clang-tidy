@@ -1,0 +1,11 @@
+# Disable all checks in this folder.
+# Except clang-tidy complains when no checks are enabled, so we do a no-op.
+# Newer clang-tidy can use '--allow-no-checks' but CI uses old version
+# From https://stackoverflow.com/a/58379342
+# The HeaderFileExtensions option can be used to make the check work with only
+# certain header file suffixes. If you set it to something non-existent line
+# "x" then you have a hello-world-do-nothing-check alternative. Your clang-tidy
+# file would then look something like this:
+Checks: '-*,misc-definitions-in-headers'
+CheckOptions:
+  - { key: HeaderFileExtensions,          value: "x" }

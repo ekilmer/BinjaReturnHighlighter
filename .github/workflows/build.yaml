@@ -1,0 +1,204 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions: {}
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Lint
+      run: cmake -D FORMAT_COMMAND=clang-format-18 -P cmake/lint.cmake
+
+  build:
+    name: build (${{matrix.version.name}}, ${{matrix.config.os}})
+    needs: [lint]
+    runs-on: ${{matrix.config.os}}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - {os: windows-2022,
+          name: windows}
+        - {os: macos-15,
+          name: macos}
+        - {os: ubuntu-24.04,
+          name: ubuntu}
+        version:
+        - name: HEAD  # Current submodule
+          owner: ekilmer
+        - name: dev   # Current upstream latest commits
+          owner: Vector35
+        - name: cmake-refactor # My CMake refactor branch
+          owner: ekilmer
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'true'
+        persist-credentials: false
+
+    - name: Install static analyzers
+      if: matrix.config.os == 'ubuntu-24.04'
+      run: |
+        sudo wget --output-document=/usr/share/keyrings/apt.llvm.org.asc https://apt.llvm.org/llvm-snapshot.gpg.key
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/apt.llvm.org.asc] http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        sudo apt-get --yes update
+
+        sudo apt-get install --yes --no-install-recommends cppcheck clang-tidy-20
+        sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-20 900
+
+        cppcheck --version
+        clang-tidy --version
+
+    - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+
+    - name: Update submodule
+      run: |
+        cd external/binaryninja-api
+        git remote set-url origin https://github.com/${{matrix.version.owner}}/binaryninja-api.git
+        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+        git fetch --quiet --tags
+        git fetch --update-shallow --depth=1 origin ${{matrix.version.name}}
+        git checkout --progress --force ${{matrix.version.name}}
+        git show --no-patch HEAD
+        git submodule update --init --depth=1 vendor/
+
+    - name: Configure CMake
+      run: cmake --log-level=DEBUG
+            --preset ci-${{matrix.config.name}}
+            -DBinaryNinjaAPI_USER_PLUGINS_DIR=install-plugin # For cmake-refactor branches
+
+    - name: Build
+      run: cmake --build build --config Release -j 4
+
+    # Much easier to copy plugin for artifact upload when we can specify install path
+    - name: Install
+      if: matrix.version.owner == 'ekilmer'
+      run: cmake --install build --config Release
+
+    # Upstream doesn't let you set arbitrary installation path, so copy manually
+    - name: Install (manual copy plugin)
+      if: matrix.version.owner != 'ekilmer'
+      shell: pwsh
+      run: |
+        mkdir install-plugin
+        Write-Host "Found plugin binaries at the following locations:"
+        $pluginFiles = Get-ChildItem -Path build -Recurse -File | Where-Object { $_.Name -match "ReturnHighlighter.*\.(dylib|so|dll)$" }
+        $pluginFiles | ForEach-Object { Write-Host $_.FullName }
+
+        # Find the largest plugin file and copy only that one (due to macOS single-arch binaries existing separately)
+        $largestPluginFile = $pluginFiles | Sort-Object Length -Descending | Select-Object -First 1
+        Write-Host "Copying largest plugin file: $($largestPluginFile.FullName) (Size: $($largestPluginFile.Length) bytes)"
+        Copy-Item $largestPluginFile.FullName -Destination install-plugin
+        Get-ChildItem -Path install-plugin
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{matrix.config.name}}-${{matrix.version.name}}
+        path: install-plugin/
+
+  vcpkg:
+    name: vcpkg (${{matrix.version}}, ${{matrix.config.os}})
+    needs: [lint]
+    runs-on: ${{matrix.config.os}}
+    permissions:
+      contents: read
+    env:
+      VCPKG_COMMIT: ce613c41372b23b1f51333815feb3edd87ef8a8b # 2025.04.09
+      USERNAME: ekilmer
+      FEED_URL: https://nuget.pkg.github.com/ekilmer/index.json
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: windows-2022,
+             name: windows-vcpkg,
+             nuget: nuget}
+          - {os: macos-15,
+             name: macos-vcpkg,
+             nuget: mono `vcpkg fetch nuget | tail -n 1`}
+          - {os: ubuntu-24.04,
+             name: ubuntu-vcpkg,
+             nuget: mono `vcpkg fetch nuget | tail -n 1`}
+        version:
+          - dev
+          - "5.0.7290-stable"
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Install static analyzers and dependencies
+      if: matrix.config.os == 'ubuntu-24.04'
+      run: |
+        sudo wget --output-document=/usr/share/keyrings/apt.llvm.org.asc https://apt.llvm.org/llvm-snapshot.gpg.key
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/apt.llvm.org.asc] http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        sudo apt-get --yes update
+
+        sudo apt-get install --yes --no-install-recommends cppcheck clang-tidy-20
+        sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-20 900
+
+        cppcheck --version
+        clang-tidy --version
+
+        sudo apt-get install --yes mono-complete
+
+    - name: Setup vcpkg environment
+      shell: bash
+      run: |
+        git submodule update --init --depth=1 binja-vcpkg-overlays
+        git -C "$VCPKG_INSTALLATION_ROOT" fetch --all
+        git -C "$VCPKG_INSTALLATION_ROOT" reset --hard ${{env.VCPKG_COMMIT}}
+        "$VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.sh"
+
+        echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+
+        if [[ "${{ matrix.config.name }}" == "macos-vcpkg" ]]; then
+          brew install mono
+        fi
+
+        ${{matrix.config.nuget}} \
+          sources add \
+          -Source "${{env.FEED_URL}}" \
+          -StorePasswordInClearText \
+          -Name GitHubPackages \
+          -UserName "${{env.USERNAME}}" \
+          -Password "${{secrets.GH_PACKAGES_TOKEN}}"
+        ${{matrix.config.nuget}} \
+          setapikey "${{secrets.GH_PACKAGES_TOKEN}}" \
+          -Source "${{env.FEED_URL}}"
+
+    - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+
+    - name: Configure CMake
+      env:
+        VCPKG_BINARY_SOURCES: clear;nuget,${{env.FEED_URL}},readwrite
+      run: cmake --log-level=DEBUG
+            --preset ci-${{matrix.config.name}}
+            "-DVCPKG_OVERLAY_PORTS=binja-vcpkg-overlays/api-${{ matrix.version }}"
+            -DBinaryNinjaAPI_USER_PLUGINS_DIR=install-plugin
+
+    - name: Build
+      run: cmake --build build --config Release -j 4
+
+    - name: Install
+      run: cmake --install build --config Release
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{matrix.config.name}}-${{matrix.version}}
+        path: install-plugin/

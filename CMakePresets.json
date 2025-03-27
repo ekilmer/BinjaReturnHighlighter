@@ -1,0 +1,168 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 14,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "cmake-pedantic",
+      "hidden": true,
+      "warnings": {
+        "dev": true,
+        "deprecated": true,
+        "uninitialized": true,
+        "unusedCli": true,
+        "systemVars": false
+      },
+      "errors": {
+        "dev": false,
+        "deprecated": true
+      }
+    },
+    {
+      "name": "dev-mode",
+      "hidden": true,
+      "inherits": "cmake-pedantic",
+      "cacheVariables": {
+        "BinjaReturnHighlighter_DEVELOPER_MODE": true
+      }
+    },
+    {
+      "name": "vcpkg",
+      "hidden": true,
+      "cacheVariables": {
+        "BinjaReturnHighlighter_VENDORED_BINARYNINJAAPI": false,
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALL_OPTIONS": "--debug",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/binja-vcpkg-overlays/api-dev",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/binja-vcpkg-overlays/triplets"
+      }
+    },
+    {
+      "name": "cppcheck",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_CPPCHECK": "cppcheck;--inline-suppr"
+      }
+    },
+    {
+      "name": "clang-tidy",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_CLANG_TIDY": "clang-tidy;--header-filter=^${sourceDir}/;--exclude-header-filter=^${sourceDir}/external/"
+      }
+    },
+    {
+      "name": "ci-std",
+      "description": "This preset makes sure the project actually builds with at least the specified standard",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_CXX_STANDARD": "17",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON"
+      }
+    },
+    {
+      "name": "flags-gcc-clang",
+      "description": "Don't set any flags for now...",
+      "hidden": true
+    },
+    {
+      "name": "flags-appleclang",
+      "description": "Don't set any flags for now...",
+      "hidden": true
+    },
+    {
+      "name": "flags-msvc",
+      "description": "Don't set any flags for now...",
+      "hidden": true
+    },
+    {
+      "name": "ci-linux",
+      "description": "Don't set any CFLAGS for now...",
+      "inherits": ["flags-gcc-clang", "ci-std"],
+      "generator": "Unix Makefiles",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "ci-darwin",
+      "inherits": ["flags-appleclang", "ci-std"],
+      "generator": "Xcode",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS": "-o linker-signed"
+      }
+    },
+    {
+      "name": "ci-win64",
+      "inherits": ["flags-msvc", "ci-std"],
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "hidden": true
+    },
+    {
+      "name": "ci-build",
+      "binaryDir": "${sourceDir}/build",
+      "hidden": true
+    },
+    {
+      "name": "ci-multi-config",
+      "description": "Speed up multi-config generators by generating only one configuration instead of the defaults",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Release"
+      }
+    },
+    {
+      "name": "ci-macos",
+      "inherits": ["ci-build", "ci-darwin", "dev-mode", "ci-multi-config"],
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "x86_64;arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "11.0"
+      }
+    },
+    {
+      "name": "ci-ubuntu",
+      "inherits": ["ci-build", "ci-linux", "clang-tidy", "dev-mode"]
+    },
+    {
+      "name": "ci-windows",
+      "inherits": ["ci-build", "ci-win64", "dev-mode", "ci-multi-config"]
+    },
+    {
+      "name": "ci-macos-vcpkg",
+      "inherits": ["vcpkg", "ci-macos"],
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "universal-macos-release"
+      },
+      "environment": {
+        "VCPKG_DEFAULT_HOST_TRIPLET": "universal-macos-release"
+      }
+    },
+    {
+      "name": "ci-ubuntu-vcpkg",
+      "inherits": ["vcpkg", "cppcheck", "ci-ubuntu"],
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-linux-release"
+      },
+      "environment": {
+        "VCPKG_DEFAULT_HOST_TRIPLET": "x64-linux-release"
+      }
+    },
+    {
+      "name": "ci-windows-vcpkg",
+      "inherits": ["vcpkg", "ci-windows"],
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows-static-md-release"
+      },
+      "environment": {
+        "VCPKG_DEFAULT_HOST_TRIPLET": "x64-windows-static-md-release"
+      }
+    }
+  ]
+}
