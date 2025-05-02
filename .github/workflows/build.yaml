@@ -1,10 +1,10 @@
 name: Build
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
 
 permissions: {}
 
@@ -115,11 +115,11 @@ jobs:
     needs: [lint]
     runs-on: ${{matrix.config.os}}
     permissions:
+      packages: write
       contents: read
     env:
       VCPKG_COMMIT: ce613c41372b23b1f51333815feb3edd87ef8a8b # 2025.04.09
-      USERNAME: ekilmer
-      FEED_URL: https://nuget.pkg.github.com/ekilmer/index.json
+      NUGET_FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
     strategy:
       fail-fast: false
       matrix:
@@ -161,7 +161,7 @@ jobs:
       run: |
         git submodule update --init --depth=1 binja-vcpkg-overlays
         git -C "$VCPKG_INSTALLATION_ROOT" fetch --all
-        git -C "$VCPKG_INSTALLATION_ROOT" reset --hard ${{env.VCPKG_COMMIT}}
+        git -C "$VCPKG_INSTALLATION_ROOT" reset --hard ${{ env.VCPKG_COMMIT }}
         "$VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.sh"
 
         echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
@@ -170,22 +170,22 @@ jobs:
           brew install mono
         fi
 
-        ${{matrix.config.nuget}} \
+        ${{ matrix.config.nuget }} \
           sources add \
-          -Source "${{env.FEED_URL}}" \
+          -Source "${{ env.NUGET_FEED_URL }}" \
           -StorePasswordInClearText \
           -Name GitHubPackages \
-          -UserName "${{env.USERNAME}}" \
-          -Password "${{secrets.GH_PACKAGES_TOKEN}}"
-        ${{matrix.config.nuget}} \
-          setapikey "${{secrets.GH_PACKAGES_TOKEN}}" \
-          -Source "${{env.FEED_URL}}"
+          -UserName "${{ github.repository_owner }}" \
+          -Password "${{ secrets.GITHUB_TOKEN }}"
+        ${{ matrix.config.nuget }} \
+          setapikey "${{ secrets.GITHUB_TOKEN }}" \
+          -Source "${{ env.NUGET_FEED_URL }}"
 
     - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
 
     - name: Configure CMake
       env:
-        VCPKG_BINARY_SOURCES: clear;nuget,${{env.FEED_URL}},readwrite
+        VCPKG_BINARY_SOURCES: clear;nuget,${{ env.NUGET_FEED_URL }},readwrite
       run: cmake --log-level=DEBUG
             --preset ci-${{matrix.config.name}}
             "-DVCPKG_OVERLAY_PORTS=binja-vcpkg-overlays/api-${{ matrix.version }}"
