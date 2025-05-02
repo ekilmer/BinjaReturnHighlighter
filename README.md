@@ -71,6 +71,6 @@ The plugin implements a custom `ReturnHighlightLayer` that:
 3. Applies blue highlighting with 50% opacity to lines containing return instructions
 4. Uses Binary Ninja's [RenderLayer](https://dev-api.binary.ninja/cpp/class_binary_ninja_1_1_render_layer.html) API to integrate with the UI
 
-## Improvements
+## TODO Improvements
 
 - Allow the user to choose a color for line highlighting
