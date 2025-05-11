@@ -119,7 +119,9 @@ jobs:
       contents: read
     env:
       VCPKG_COMMIT: ce613c41372b23b1f51333815feb3edd87ef8a8b # 2025.04.09
-      NUGET_FEED_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+      # Note: Change 'ekilmer-packages' to your own username or org
+      NUGET_FEED_URL: https://nuget.pkg.github.com/ekilmer-packages/index.json
+      PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN != '' && secrets.PACKAGE_TOKEN || secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -176,9 +178,9 @@ jobs:
           -StorePasswordInClearText \
           -Name GitHubPackages \
           -UserName "${{ github.repository_owner }}" \
-          -Password "${{ secrets.GITHUB_TOKEN }}"
+          -Password "${{ env.PACKAGE_TOKEN }}"
         ${{ matrix.config.nuget }} \
-          setapikey "${{ secrets.GITHUB_TOKEN }}" \
+          setapikey "${{ env.PACKAGE_TOKEN }}" \
           -Source "${{ env.NUGET_FEED_URL }}"
 
     - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
