@@ -65,13 +65,14 @@ jobs:
     - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
 
     - name: Update submodule
+      shell: bash
       run: |
         cd external/binaryninja-api
-        git remote set-url origin https://github.com/${{matrix.version.owner}}/binaryninja-api.git
-        git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
-        git fetch --quiet --tags
-        git fetch --update-shallow --depth=1 origin ${{matrix.version.name}}
-        git checkout --progress --force ${{matrix.version.name}}
+        if [ "${{matrix.version.name}}" != "HEAD" ]; then
+          git remote set-url origin https://github.com/${{matrix.version.owner}}/binaryninja-api.git
+          git fetch --depth=1 --force origin "refs/heads/${{matrix.version.name}}:refs/remotes/origin/${{matrix.version.name}}"
+          git checkout --force "origin/${{matrix.version.name}}"
+        fi
         git show --no-patch HEAD
         git submodule update --init --depth=1 vendor/
 
