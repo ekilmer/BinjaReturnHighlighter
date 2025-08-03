@@ -138,6 +138,7 @@ jobs:
              nuget: mono `vcpkg fetch nuget | tail -n 1`}
         version:
           - dev
+          - "5.1.8005-stable"
           - "5.0.7486-stable"
           - "5.0.7290-stable"
     steps:
