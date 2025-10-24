@@ -83,7 +83,7 @@
       "name": "ci-linux",
       "description": "Don't set any CFLAGS for now...",
       "inherits": ["flags-gcc-clang", "ci-std"],
-      "generator": "Unix Makefiles",
+      "generator": "Ninja",
       "hidden": true,
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
