@@ -80,6 +80,14 @@
       "hidden": true
     },
     {
+      "name": "common",
+      "description": "Common settings shared by all presets",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
       "name": "ci-linux",
       "description": "Don't set any CFLAGS for now...",
       "inherits": ["flags-gcc-clang", "ci-std"],
@@ -120,7 +128,7 @@
     },
     {
       "name": "ci-macos",
-      "inherits": ["ci-build", "ci-darwin", "dev-mode", "ci-multi-config"],
+      "inherits": ["ci-build", "ci-darwin", "dev-mode", "ci-multi-config", "common"],
       "cacheVariables": {
         "CMAKE_OSX_ARCHITECTURES": "x86_64;arm64",
         "CMAKE_OSX_DEPLOYMENT_TARGET": "11.0"
@@ -128,11 +136,11 @@
     },
     {
       "name": "ci-ubuntu",
-      "inherits": ["ci-build", "ci-linux", "clang-tidy", "dev-mode"]
+      "inherits": ["ci-build", "ci-linux", "clang-tidy", "dev-mode", "common"]
     },
     {
       "name": "ci-windows",
-      "inherits": ["ci-build", "ci-win64", "dev-mode", "ci-multi-config"]
+      "inherits": ["ci-build", "ci-win64", "dev-mode", "ci-multi-config", "common"]
     },
     {
       "name": "ci-macos-vcpkg",
