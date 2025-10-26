@@ -1,6 +1,3 @@
 [submodule "external/binaryninja-api"]
 	path = external/binaryninja-api
 	url = https://github.com/vector35/binaryninja-api
-[submodule "binja-vcpkg-overlays"]
-	path = binja-vcpkg-overlays
-	url = https://github.com/ekilmer/binja-vcpkg-overlays.git

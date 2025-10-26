@@ -1,5 +1,0 @@
-{
-  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
-  "overlay-ports": [ "./binja-vcpkg-overlays/api-dev" ],
-  "overlay-triplets": [ "./binja-vcpkg-overlays/triplets" ]
-}

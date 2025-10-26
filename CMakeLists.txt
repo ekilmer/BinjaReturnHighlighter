@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 4.2)
 
 # Set up project-specific versions and options
 project(
@@ -8,7 +8,6 @@ project(
     DESCRIPTION "Binary Ninja Return Statement Highlighter Plugin"
 )
 
-include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
 
 # ---- Declare plugin ----
@@ -47,13 +46,11 @@ target_compile_features(BinjaReturnHighlighter_plugin PUBLIC cxx_std_17)
 
 # ---- Dependencies ----
 
-if(BinjaReturnHighlighter_VENDORED_BINARYNINJAAPI)
-    set(HEADLESS True)
-    add_subdirectory(external/binaryninja-api EXCLUDE_FROM_ALL)
-else()
-    find_package(BinaryNinjaAPI REQUIRED)
-endif()
-target_link_libraries(BinjaReturnHighlighter_plugin PUBLIC binaryninjaapi)
+add_subdirectory(external)
+
+find_package(fmt REQUIRED)
+
+target_link_libraries(BinjaReturnHighlighter_plugin PUBLIC binaryninjaapi fmt::fmt)
 
 # ---- Install rules ----
 

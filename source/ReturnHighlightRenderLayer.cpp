@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <vector>
 
+#include <fmt/base.h>
+
 #include <binaryninjaapi.h>
 #include <binaryninjacore.h>
 #include <highlevelilinstruction.h>
@@ -28,9 +30,7 @@ namespace {
 
 	bool LineContainsKeywordToken(DisassemblyTextLine& line)
 	{
-		return std::any_of(line.tokens.begin(), line.tokens.end(), [](const auto& token) {
-			return token.type == KeywordToken;
-		});
+		return std::ranges::any_of(line.tokens, [](const auto& token) { return token.type == KeywordToken; });
 	}
 
 	bool LlilInstructionIsReturn(const LowLevelILInstruction& instruction)
@@ -98,6 +98,8 @@ void ReturnHighlightRenderLayer::ApplyToHighLevelILBody(
 	const Ref<Function> function, std::vector<LinearDisassemblyLine>& lines)
 {
 	Ref<HighLevelILFunction> const hlilFunc = function->GetHighLevelIL();
+	// Use fmt to explain what's happening
+	fmt::print("Applying to high level IL body\n");
 	for (auto& linearLine : lines)
 	{
 		DisassemblyTextLine& line = linearLine.contents;
