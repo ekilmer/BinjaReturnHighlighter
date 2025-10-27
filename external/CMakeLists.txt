@@ -8,4 +8,4 @@ set(CMAKE_SKIP_LINTING ON)
 
 # Make the binaryninja-api code available
 set(HEADLESS ON)
-add_subdirectory(binaryninja-api EXCLUDE_FROM_ALL)
+add_subdirectory(binaryninja-api EXCLUDE_FROM_ALL SYSTEM)
