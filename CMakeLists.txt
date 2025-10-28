@@ -11,12 +11,21 @@ project(
 include(cmake/variables.cmake)
 
 # ---- Declare plugin ----
-add_library(
-    BinjaReturnHighlighter_plugin MODULE
-    source/plugin.cpp
-    source/ReturnHighlightRenderLayer.cpp
-)
+add_library(BinjaReturnHighlighter_plugin MODULE)
 add_library(BinjaReturnHighlighter::plugin ALIAS BinjaReturnHighlighter_plugin)
+
+target_sources(
+    BinjaReturnHighlighter_plugin
+    PRIVATE
+        source/plugin.cpp
+        source/ReturnHighlightRenderLayer.cpp
+
+    PRIVATE
+    FILE_SET HEADERS
+    BASE_DIRS include
+    FILES
+        include/BinjaReturnHighlighter/ReturnHighlightRenderLayer.hpp
+)
 
 set_target_properties(
     BinjaReturnHighlighter_plugin PROPERTIES
@@ -35,12 +44,6 @@ if(APPLE)
         SUFFIX "${BinjaReturnHighlighter_SHARED_MODULE_SUFFIX}"
     )
 endif()
-
-target_include_directories(
-    BinjaReturnHighlighter_plugin
-    PUBLIC
-    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-)
 
 target_compile_features(BinjaReturnHighlighter_plugin PUBLIC cxx_std_20)
 
