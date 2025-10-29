@@ -84,7 +84,9 @@
       "description": "Common settings shared by all presets",
       "hidden": true,
       "cacheVariables": {
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BN_ALLOW_STUBS": "ON",
+        "CORE_LIBRARY": ""
       }
     },
     {

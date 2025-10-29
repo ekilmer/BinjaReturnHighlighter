@@ -11,7 +11,7 @@ project(
 include(cmake/variables.cmake)
 
 # ---- Declare plugin ----
-add_library(BinjaReturnHighlighter_plugin MODULE)
+add_library(BinjaReturnHighlighter_plugin SHARED)
 add_library(BinjaReturnHighlighter::plugin ALIAS BinjaReturnHighlighter_plugin)
 
 target_sources(
@@ -34,16 +34,6 @@ set_target_properties(
     EXPORT_NAME BinjaReturnHighlighter
     OUTPUT_NAME ReturnHighlighter
 )
-
-if(APPLE)
-    # On macOS, MODULE libraries end with ".so" by default, but Binja doesn't load these
-    set(BinjaReturnHighlighter_SHARED_MODULE_SUFFIX ".dylib" CACHE STRING "Plugin shared module suffix")
-    mark_as_advanced(BinjaReturnHighlighter_SHARED_MODULE_SUFFIX)
-    set_target_properties(
-        BinjaReturnHighlighter_plugin PROPERTIES
-        SUFFIX "${BinjaReturnHighlighter_SHARED_MODULE_SUFFIX}"
-    )
-endif()
 
 target_compile_features(BinjaReturnHighlighter_plugin PUBLIC cxx_std_20)
 
