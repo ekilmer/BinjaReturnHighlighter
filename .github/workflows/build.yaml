@@ -28,7 +28,7 @@ jobs:
       packages: write
       contents: read
     env:
-      VCPKG_COMMIT: 74e6536215718009aae747d86d84b78376bf9e09 # 2025.10.17
+      VCPKG_COMMIT: 62159a45e18f3a9ac0548628dcaf74fcb60c6ff9 # 2026.02.27
       # Note: Change 'ekilmer-packages' to your own username or org
       NUGET_FEED_URL: https://nuget.pkg.github.com/ekilmer-packages/index.json
       PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN != '' && secrets.PACKAGE_TOKEN || secrets.GITHUB_TOKEN }}
