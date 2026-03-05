@@ -14,7 +14,7 @@ jobs:
     permissions:
       contents: read
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         persist-credentials: false
     - name: Lint
@@ -52,23 +52,22 @@ jobs:
         #   - "5.1.8104-stable"
         #   - "5.0.7648-stable"
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
+        submodules: 'true'
         persist-credentials: false
 
     - name: Get latest CMake and Ninja
-      uses: lukka/get-cmake@4169813123dd72674c1697fc8f2554818db4c92b # New CMake version(s): cmake-rc-v4.2.0-rc1
-      with:
-        cmakeVersion: 4.2.0-rc1
+      uses: lukka/get-cmake@f176ccd3f28bda569c43aae4894f06b2435a3375 # v4.2.3
 
     - name: Update binaryninja-api submodule
       shell: bash
       run: |
         cd external/binaryninja-api
-        if [ "${{matrix.version.name}}" != "HEAD" ]; then
-          git remote set-url origin https://github.com/${{matrix.version.owner}}/binaryninja-api.git
-          git fetch --depth=1 --force origin "refs/heads/${{matrix.version.name}}:refs/remotes/origin/${{matrix.version.name}}"
-          git checkout --force "origin/${{matrix.version.name}}"
+        if [ "${{matrix.version}}" != "HEAD" ]; then
+          git remote set-url origin https://github.com/Vector35/binaryninja-api.git
+          git fetch --depth=1 --force origin "refs/heads/Vector35:refs/remotes/origin/${{matrix.version}}"
+          git checkout --force "origin/${{matrix.version}}"
         fi
         git show --no-patch HEAD
         git submodule update --init --depth=1 vendor/
@@ -77,11 +76,11 @@ jobs:
       if: matrix.config.os == 'ubuntu-24.04'
       run: |
         sudo wget --output-document=/usr/share/keyrings/apt.llvm.org.asc https://apt.llvm.org/llvm-snapshot.gpg.key
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/apt.llvm.org.asc] http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/apt.llvm.org.asc] http://apt.llvm.org/noble/ llvm-toolchain-noble-22 main" | sudo tee /etc/apt/sources.list.d/llvm.list
         sudo apt-get --yes update
 
-        sudo apt-get install --yes --no-install-recommends cppcheck clang-tidy-20
-        sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-20 900
+        sudo apt-get install --yes --no-install-recommends cppcheck clang-tidy-22
+        sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-22 900
 
         cppcheck --version
         clang-tidy --version
@@ -91,14 +90,13 @@ jobs:
     - name: Setup vcpkg environment
       shell: bash
       run: |
-        git submodule update --init --depth=1 binja-vcpkg-overlays
         git -C "$VCPKG_INSTALLATION_ROOT" fetch --all
         git -C "$VCPKG_INSTALLATION_ROOT" reset --hard ${{ env.VCPKG_COMMIT }}
         "$VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.sh"
 
         echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
 
-        if [[ "${{ matrix.config.name }}" == "macos-vcpkg" ]]; then
+        if [[ "${{ matrix.config.name }}" == "macos" ]]; then
           brew install mono
         fi
 
@@ -120,27 +118,16 @@ jobs:
         VCPKG_BINARY_SOURCES: clear;nuget,${{ env.NUGET_FEED_URL }},readwrite
       run: cmake --log-level=DEBUG
             --preset ci-${{matrix.config.name}}
+            -DBN_USER_PLUGINS_DIR="${{ github.workspace }}/install-plugin"
 
     - name: Build
       run: cmake --build build --config Release -j 4
 
-    # Upstream doesn't let you set arbitrary installation path, so copy manually
-    - name: Install (manual copy plugin)
-      shell: pwsh
-      run: |
-        mkdir install-plugin
-        Write-Host "Found plugin binaries at the following locations:"
-        $pluginFiles = Get-ChildItem -Path build -Recurse -File | Where-Object { $_.Name -match "ReturnHighlighter.*\.(dylib|so|dll)$" }
-        $pluginFiles | ForEach-Object { Write-Host $_.FullName }
-
-        # Find the largest plugin file and copy only that one (due to macOS single-arch binaries existing separately)
-        $largestPluginFile = $pluginFiles | Sort-Object Length -Descending | Select-Object -First 1
-        Write-Host "Copying largest plugin file: $($largestPluginFile.FullName) (Size: $($largestPluginFile.Length) bytes)"
-        Copy-Item $largestPluginFile.FullName -Destination install-plugin
-        Get-ChildItem -Path install-plugin
+    - name: Install
+      run: cmake --build build --config Release --target install
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
-        name: ${{matrix.config.name}}-${{matrix.version.name}}
+        name: ${{matrix.config.name}}-${{matrix.version}}
         path: install-plugin/
