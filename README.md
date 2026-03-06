@@ -95,3 +95,12 @@ Run from repository root:
 export ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=asan.supp
 LD_PRELOAD="/usr/lib/clang/20/lib/x86_64-redhat-linux-gnu/libclang_rt.asan.so" ~/binaryninja/binaryninja
 ```
+
+Or on macOS
+
+```bash
+export ASAN_OPTIONS=detect_leaks=1
+DYLD_INSERT_LIBRARIES=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/lib/darwin/libclang_rt.asan_osx_dynamic.dylib /Applications/Binary\ Ninja.app/Contents/MacOS/binaryninja
+# or if built with homebrew clang
+DYLD_INSERT_LIBRARIES=/opt/homebrew/Cellar/llvm/22.1.0/lib/clang/22/lib/darwin/libclang_rt.asan_osx_dynamic.dylib /Applications/Binary\ Ninja.app/Contents/MacOS/binaryninja
+```

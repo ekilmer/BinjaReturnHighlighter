@@ -47,10 +47,7 @@ jobs:
              nuget: mono `vcpkg fetch nuget | tail -n 1`}
         version:
           - HEAD
-        # TODO: Uncomment this when https://github.com/Vector35/binaryninja-api/pull/7538 is merged
-        #   - dev
-        #   - "5.1.8104-stable"
-        #   - "5.0.7648-stable"
+          - dev
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
