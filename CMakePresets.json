@@ -85,8 +85,7 @@
       "hidden": true,
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "BN_ALLOW_STUBS": "ON",
-        "CORE_LIBRARY": ""
+        "BN_ALLOW_STUBS": "ON"
       }
     },
     {
