@@ -63,7 +63,7 @@ jobs:
         cd external/binaryninja-api
         if [ "${{matrix.version}}" != "HEAD" ]; then
           git remote set-url origin https://github.com/Vector35/binaryninja-api.git
-          git fetch --depth=1 --force origin "refs/heads/Vector35:refs/remotes/origin/${{matrix.version}}"
+          git fetch --depth=1 --force origin "refs/heads/${{matrix.version}}:refs/remotes/origin/${{matrix.version}}"
           git checkout --force "origin/${{matrix.version}}"
         fi
         git show --no-patch HEAD
