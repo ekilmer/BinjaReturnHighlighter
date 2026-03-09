@@ -3,11 +3,14 @@
 # Remove warning flags for external dependencies
 string(REGEX REPLACE "(^| )-W[^ ]*" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 string(REGEX REPLACE "(^| )/[Ww][^ ]*" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-string(STRIP "${CMAKE_CXX_FLAGS}" CMAKE_CXX_FLAGS)
 
-# Workaround compiler error in API
+# Workaround compiler errors for insecure functions on Windows when compiling with MSVC
 #   error C4996: 'getenv': This function or variable may be unsafe.
 #   Consider using _dupenv_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS.
+#   error C4996: 'strdup': The POSIX name for this item is deprecated.
+string(REGEX REPLACE "(^| )/sdl(\\+|( |$))" "\\3" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+string(STRIP "${CMAKE_CXX_FLAGS}" CMAKE_CXX_FLAGS)
+
 if(MSVC)
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
