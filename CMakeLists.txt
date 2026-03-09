@@ -41,6 +41,7 @@ target_compile_features(BinjaReturnHighlighter_plugin PUBLIC cxx_std_20)
 
 add_subdirectory(external)
 
+# fmt is included as an example vcpkg dependency for template adopters
 find_package(fmt REQUIRED)
 
 target_link_libraries(BinjaReturnHighlighter_plugin PUBLIC binaryninjaapi fmt::fmt)

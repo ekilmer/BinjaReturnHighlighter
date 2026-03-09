@@ -74,11 +74,22 @@ The plugin implements a custom `ReturnHighlightLayer` that:
 
 - Allow the user to choose a color for line highlighting
 
+## Using as a Template
+
+To fork this project for your own plugin, update the following:
+
+- `CMakeLists.txt`: project name, target names, developer mode variable (`BinjaReturnHighlighter_DEVELOPER_MODE`), and `OUTPUT_NAME`
+- `vcpkg.json`: package `name`
+- `include/BinjaReturnHighlighter/`: rename directory and header to match your plugin
+- `source/`: rename/replace source files
+- `CMakePresets.json`: developer mode variable reference
+- `.github/workflows/build.yaml`: artifact name and NuGet feed URL
+- `LICENSE`: copyright holder
+- `README.md`: content
+
 ## Developing
 
-WIP. Helpful notes for now.
-
-Create a `CMakeUserPresets.json` file with the following (for macOS), assuming you have a freshly cloned/updated [`vcpkg`](https://github.com/microsoft/vcpkg) repo in the parent directory:
+Create a `CMakeUserPresets.json` file with the following (for macOS), assuming you have a freshly cloned/updated [`vcpkg`](https://github.com/microsoft/vcpkg) repo in the parent directory. Adjust `<path-to-clang-tidy>` to your installation (e.g., `/opt/homebrew/Cellar/llvm/22.1.0/bin/clang-tidy` on macOS with Homebrew):
 
 ```json
 {
@@ -93,7 +104,7 @@ Create a `CMakeUserPresets.json` file with the following (for macOS), assuming y
         "VCPKG_ROOT": "${sourceParentDir}/vcpkg"
       },
       "cacheVariables": {
-        "CMAKE_CXX_CLANG_TIDY": "/opt/homebrew/Cellar/llvm/22.1.0/bin/clang-tidy;-warnings-as-errors=*",
+        "CMAKE_CXX_CLANG_TIDY": "<path-to-clang-tidy>;-warnings-as-errors=*",
         "CMAKE_CXX_CPPCHECK": "cppcheck",
         "CMAKE_OSX_ARCHITECTURES": null,
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"

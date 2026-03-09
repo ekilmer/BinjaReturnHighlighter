@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <vector>
 
-#include <fmt/base.h>
-
 #include <binaryninjaapi.h>
 #include <binaryninjacore.h>
 #include <highlevelilinstruction.h>
@@ -98,13 +96,10 @@ void ReturnHighlightRenderLayer::ApplyToHighLevelILBody(
 	const Ref<Function> function, std::vector<LinearDisassemblyLine>& lines)
 {
 	Ref<HighLevelILFunction> const hlilFunc = function->GetHighLevelIL();
-	// Use fmt to explain what's happening
-	fmt::print("Applying to high level IL body\n");
 	for (auto& linearLine : lines)
 	{
 		DisassemblyTextLine& line = linearLine.contents;
 
-		// Need to check for a keyword token. Not sure if there's a more efficient way
 		if (HighLevelILInstruction const instr = hlilFunc->GetInstruction(line.instrIndex);
 			HlilInstructionIsReturn(instr) && LineContainsKeywordToken(line))
 		{
