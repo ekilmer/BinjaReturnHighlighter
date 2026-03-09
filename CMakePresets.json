@@ -33,7 +33,7 @@
       "name": "cppcheck",
       "hidden": true,
       "cacheVariables": {
-        "CMAKE_CXX_CPPCHECK": "cppcheck;--suppressions-list=${sourceDir}/.cppcheck-suppression.txt;--inline-suppr;--error-exitcode=13"
+        "CMAKE_CXX_CPPCHECK": "cppcheck;--inline-suppr;--error-exitcode=13"
       }
     },
     {
