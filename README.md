@@ -2,7 +2,7 @@
 
 This Binary Ninja plugin provides visual highlighting of return statements across all IL (Intermediate Language) views. It helps analysts quickly identify function exit points and control flow patterns by highlighting return statements in a distinctive color.
 
-Requires Binary Ninja 5.0.7290-stable+.
+The API to perform efficient highlighting requires Binary Ninja 5.0.7290-stable+. **However**, this project realistically needs a newer version of the binaryninja-api repository to build effectively.
 
 ## Features
 
@@ -43,9 +43,10 @@ This plugin can be built using the Binary Ninja API submodule in the [`external/
 
 ```bash
 git submodule update --init external/binaryninja-api
+git -C external/binaryninja-api submodule update --init --recursive vendor
 ```
 
-You can adjust this API submodule to point to the [official Vector35 binaryninja-api repository](https://github.com/Vector35/binaryninja-api), and the following build instructions should still work.
+Then, we build like any other CMake project:
 
 ```bash
 cmake -B build -S .
@@ -77,6 +78,31 @@ The plugin implements a custom `ReturnHighlightLayer` that:
 
 WIP. Helpful notes for now.
 
+Create a `CMakeUserPresets.json` file with the following (for macOS), assuming you have a freshly cloned/updated [`vcpkg`](https://github.com/microsoft/vcpkg) repo in the parent directory:
+
+```json
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "dev-macos",
+      "inherits": ["ci-macos-universal", "dev-mode", "common"],
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "environment": {
+        "VCPKG_ROOT": "${sourceParentDir}/vcpkg"
+      },
+      "cacheVariables": {
+        "CMAKE_CXX_CLANG_TIDY": "/opt/homebrew/Cellar/llvm/22.1.0/bin/clang-tidy;-warnings-as-errors=*",
+        "CMAKE_CXX_CPPCHECK": "cppcheck",
+        "CMAKE_OSX_ARCHITECTURES": null,
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    }
+  ]
+}
+```
+
 ### Format Code
 
 ```bash
@@ -96,7 +122,7 @@ export ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=asan.supp
 LD_PRELOAD="/usr/lib/clang/20/lib/x86_64-redhat-linux-gnu/libclang_rt.asan.so" ~/binaryninja/binaryninja
 ```
 
-Or on macOS
+Or on macOS (still some issues I need to figure out...)
 
 ```bash
 export ASAN_OPTIONS=detect_leaks=1
