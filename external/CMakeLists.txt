@@ -11,10 +11,6 @@ string(REGEX REPLACE "(^| )/[Ww][^ ]*" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 string(REGEX REPLACE "(^| )/sdl(\\+|( |$))" "\\3" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 string(STRIP "${CMAKE_CXX_FLAGS}" CMAKE_CXX_FLAGS)
 
-if(MSVC)
-  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-endif()
-
 # We don't want to lint the external dependencies
 # Added in CMake 4.2
 set(CMAKE_SKIP_LINTING ON)
