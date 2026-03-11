@@ -28,9 +28,7 @@ namespace {
 
 	bool LineContainsKeywordToken(DisassemblyTextLine& line)
 	{
-		return std::any_of(line.tokens.begin(), line.tokens.end(), [](const auto& token) {
-			return token.type == KeywordToken;
-		});
+		return std::ranges::any_of(line.tokens, [](const auto& token) { return token.type == KeywordToken; });
 	}
 
 	bool LlilInstructionIsReturn(const LowLevelILInstruction& instruction)
@@ -102,7 +100,6 @@ void ReturnHighlightRenderLayer::ApplyToHighLevelILBody(
 	{
 		DisassemblyTextLine& line = linearLine.contents;
 
-		// Need to check for a keyword token. Not sure if there's a more efficient way
 		if (HighLevelILInstruction const instr = hlilFunc->GetInstruction(line.instrIndex);
 			HlilInstructionIsReturn(instr) && LineContainsKeywordToken(line))
 		{

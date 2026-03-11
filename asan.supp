@@ -1,0 +1,11 @@
+# Try to ignore everything but ~/.binaryninja/plugins
+# (Not sure if these ignores miss true positives...)
+
+# Ignore system libraries
+leak:/usr/lib/lib*
+leak:/usr/lib64/lib*
+leak:/lib/*
+leak:/lib64/*
+
+# Ignore Binary Ninja installation
+leak:*/binaryninja/*

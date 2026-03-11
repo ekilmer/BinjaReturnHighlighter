@@ -1,9 +1,3 @@
-option(
-  BinjaReturnHighlighter_VENDORED_BINARYNINJAAPI
-  "Use vendored Binary Ninja API project"
-  ON
-)
-
 # ---- Developer mode ----
 
 # Developer mode enables targets and code paths in the CMake scripts that are

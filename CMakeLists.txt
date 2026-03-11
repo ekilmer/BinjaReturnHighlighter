@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 4.2)
 
 # Set up project-specific versions and options
 project(
@@ -8,16 +8,24 @@ project(
     DESCRIPTION "Binary Ninja Return Statement Highlighter Plugin"
 )
 
-include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
 
 # ---- Declare plugin ----
-add_library(
-    BinjaReturnHighlighter_plugin MODULE
-    source/plugin.cpp
-    source/ReturnHighlightRenderLayer.cpp
-)
+add_library(BinjaReturnHighlighter_plugin SHARED)
 add_library(BinjaReturnHighlighter::plugin ALIAS BinjaReturnHighlighter_plugin)
+
+target_sources(
+    BinjaReturnHighlighter_plugin
+    PRIVATE
+        source/plugin.cpp
+        source/ReturnHighlightRenderLayer.cpp
+
+    PRIVATE
+    FILE_SET HEADERS
+    BASE_DIRS include
+    FILES
+        include/BinjaReturnHighlighter/ReturnHighlightRenderLayer.hpp
+)
 
 set_target_properties(
     BinjaReturnHighlighter_plugin PROPERTIES
@@ -27,33 +35,16 @@ set_target_properties(
     OUTPUT_NAME ReturnHighlighter
 )
 
-if(APPLE)
-    # On macOS, MODULE libraries end with ".so" by default, but Binja doesn't load these
-    set(BinjaReturnHighlighter_SHARED_MODULE_SUFFIX ".dylib" CACHE STRING "Plugin shared module suffix")
-    mark_as_advanced(BinjaReturnHighlighter_SHARED_MODULE_SUFFIX)
-    set_target_properties(
-        BinjaReturnHighlighter_plugin PROPERTIES
-        SUFFIX "${BinjaReturnHighlighter_SHARED_MODULE_SUFFIX}"
-    )
-endif()
-
-target_include_directories(
-    BinjaReturnHighlighter_plugin
-    PUBLIC
-    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
-)
-
-target_compile_features(BinjaReturnHighlighter_plugin PUBLIC cxx_std_17)
+target_compile_features(BinjaReturnHighlighter_plugin PUBLIC cxx_std_20)
 
 # ---- Dependencies ----
 
-if(BinjaReturnHighlighter_VENDORED_BINARYNINJAAPI)
-    set(HEADLESS True)
-    add_subdirectory(external/binaryninja-api EXCLUDE_FROM_ALL)
-else()
-    find_package(BinaryNinjaAPI REQUIRED)
-endif()
-target_link_libraries(BinjaReturnHighlighter_plugin PUBLIC binaryninjaapi)
+add_subdirectory(external)
+
+# fmt is included as an example vcpkg dependency for template adopters
+find_package(fmt REQUIRED)
+
+target_link_libraries(BinjaReturnHighlighter_plugin PUBLIC binaryninjaapi fmt::fmt)
 
 # ---- Install rules ----
 

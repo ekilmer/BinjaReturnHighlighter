@@ -2,9 +2,7 @@
 
 This Binary Ninja plugin provides visual highlighting of return statements across all IL (Intermediate Language) views. It helps analysts quickly identify function exit points and control flow patterns by highlighting return statements in a distinctive color.
 
-Requires Binary Ninja 5.0.7290-stable+.
-
-This plugin was created as a working example for some CMake refactoring ideas I had in mind for Binary Ninja's public C++ API. While this repo includes vcpkg packaging and handling of dependencies, this only works with my [`cmake-refactor*` branches](https://github.com/ekilmer/binaryninja-api/branches/all?query=cmake-refactor&lastTab=overview). However, the CI for this plugin also tests upstream's [`dev` branch](https://github.com/Vector35/binaryninja-api/tree/dev) to ensure compatibility and prove that this plugin build doesn't rely on custom patches.
+The API to perform efficient highlighting requires Binary Ninja 5.0.7290-stable+. **However**, this project realistically needs a newer version of the binaryninja-api repository to build effectively.
 
 ## Features
 
@@ -32,8 +30,8 @@ The GitHub Actions CI uploads artifacts for each OS, however, you can build from
 
 ### Prerequisites
 
-- CMake 3.14 or newer
-- C++17 compatible compiler
+- CMake 4.2.0 or newer
+- C++20 compatible compiler
 - Binary Ninja API
   - Stable v5.0.7290+
   - 4.3.6779-dev (Jan 31, 2025) or newer
@@ -44,10 +42,11 @@ The GitHub Actions CI uploads artifacts for each OS, however, you can build from
 This plugin can be built using the Binary Ninja API submodule in the [`external/`](./external) directory.
 
 ```bash
-git submodule update --init --recursive
+git submodule update --init external/binaryninja-api
+git -C external/binaryninja-api submodule update --init --recursive vendor
 ```
 
-You can adjust this API submodule to point to the [official Vector35 binaryninja-api repository](https://github.com/Vector35/binaryninja-api), and the following build instructions should still work.
+Then, we build like any other CMake project:
 
 ```bash
 cmake -B build -S .
@@ -59,7 +58,7 @@ The plugin can be installed to the default Binary Ninja plugin directory on each
 ```bash
 $ cmake --build build --target install
 [...]
--- Installing: /Users/user/Library/Application Support/Binary Ninja/plugins/libReturnHighlighter.dylib
+-- Installing: [...]/plugins/libReturnHighlighter.dylib
 ```
 
 ## How It Works
@@ -74,3 +73,71 @@ The plugin implements a custom `ReturnHighlightLayer` that:
 ## Improvements
 
 - Allow the user to choose a color for line highlighting
+
+## Using as a Template
+
+To fork this project for your own plugin, update the following:
+
+- `CMakeLists.txt`: project name, target names, developer mode variable (`BinjaReturnHighlighter_DEVELOPER_MODE`), and `OUTPUT_NAME`
+- `vcpkg.json`: package `name`
+- `include/BinjaReturnHighlighter/`: rename directory and header to match your plugin
+- `source/`: rename/replace source files
+- `CMakePresets.json`: developer mode variable reference
+- `.github/workflows/build.yaml`: artifact name and NuGet feed URL
+- `LICENSE`: copyright holder
+- `README.md`: content
+
+## Developing
+
+Create a `CMakeUserPresets.json` file with the following (for macOS), assuming you have a freshly cloned/updated [`vcpkg`](https://github.com/microsoft/vcpkg) repo in the parent directory. Adjust `<path-to-clang-tidy>` to your installation (e.g., `/opt/homebrew/Cellar/llvm/22.1.0/bin/clang-tidy` on macOS with Homebrew):
+
+```json
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "dev-macos",
+      "inherits": ["ci-macos-universal", "dev-mode", "common"],
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "environment": {
+        "VCPKG_ROOT": "${sourceParentDir}/vcpkg"
+      },
+      "cacheVariables": {
+        "CMAKE_CXX_CLANG_TIDY": "<path-to-clang-tidy>;-warnings-as-errors=*",
+        "CMAKE_CXX_CPPCHECK": "cppcheck",
+        "CMAKE_OSX_ARCHITECTURES": null,
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    }
+  ]
+}
+```
+
+### Format Code
+
+```bash
+cmake --build build --target format-fix
+```
+
+### Code Quality with cppcheck and clang-tidy
+
+Requires CMake 4.2.0+ for [`CMAKE_SKIP_LINTING`](https://cmake.org/cmake/help/latest/variable/CMAKE_SKIP_LINTING.html) so that we don't code quality checks on binaryninja-api repository code.
+
+### Sanitizers
+
+Run from repository root:
+
+```bash
+export ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=asan.supp
+LD_PRELOAD="/usr/lib/clang/20/lib/x86_64-redhat-linux-gnu/libclang_rt.asan.so" ~/binaryninja/binaryninja
+```
+
+Or on macOS (still some issues I need to figure out...)
+
+```bash
+export ASAN_OPTIONS=detect_leaks=1
+DYLD_INSERT_LIBRARIES=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/lib/darwin/libclang_rt.asan_osx_dynamic.dylib /Applications/Binary\ Ninja.app/Contents/MacOS/binaryninja
+# or if built with homebrew clang
+DYLD_INSERT_LIBRARIES=/opt/homebrew/Cellar/llvm/22.1.0/lib/clang/22/lib/darwin/libclang_rt.asan_osx_dynamic.dylib /Applications/Binary\ Ninja.app/Contents/MacOS/binaryninja
+```

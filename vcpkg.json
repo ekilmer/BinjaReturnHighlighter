@@ -1,14 +1,11 @@
 {
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
     "name": "binja-return-highlighter-plugin",
-    "version-date": "2025-04-06",
+    "version-date": "2026-03-05",
     "dependencies": [
-        {
-            "name": "binaryninja-api",
-            "version>=": "89.90.0"
-        }
+        "fmt"
     ],
     "description": "Plugin to highlight return instructions in Binary Ninja ILs",
-    "$builitin-baseline-comment": "Commit SHA for tag 2025.02.14",
-    "builtin-baseline": "d5ec528843d29e3a52d745a64b469f810b2cedbf"
-} 
+    "$builtin-baseline-comment": "Commit SHA for tag 2026.02.27",
+    "builtin-baseline": "62159a45e18f3a9ac0548628dcaf74fcb60c6ff9"
+}
