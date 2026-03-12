@@ -41,10 +41,15 @@ namespace {
 		return nullptr;
 	}
 
+	bool IsHighlightedWithColor(const DisassemblyTextLine& line, BNHighlightStandardColor expectedColor)
+	{
+		return line.highlight.style == StandardHighlightColor && line.highlight.color == expectedColor
+			&& line.highlight.alpha == FullAlpha;
+	}
+
 	bool IsHighlighted(const DisassemblyTextLine& line)
 	{
-		return line.highlight.style == StandardHighlightColor && line.highlight.color == BlueHighlightColor
-			&& line.highlight.alpha == FullAlpha;
+		return IsHighlightedWithColor(line, BlueHighlightColor);
 	}
 
 	const DisassemblyTextLine* FindLineByAddr(const std::vector<DisassemblyTextLine>& lines, uint64_t addr)
@@ -93,6 +98,7 @@ namespace {
 #endif
 			SetBundledPluginDirectory(pluginDir);
 			InitPlugins();
+			RegisterReturnHighlighterSettings();
 
 			const std::string testBinary = TEST_DATA_DIR "simple";
 			const Ref<BinaryView> binaryView = BinaryNinja::Load(testBinary);
@@ -115,11 +121,13 @@ namespace {
 
 }  // namespace
 
-// NOLINTBEGIN(misc-use-internal-linkage)
+// NOLINTBEGIN(misc-use-internal-linkage,cppcoreguidelines-non-private-member-variables-in-classes)
 class ReturnHighlightTest : public ::testing::Test
 {
 protected:
 	ReturnHighlightRenderLayer m_Layer;
+
+	void TearDown() override { Settings::Instance()->Set("returnHighlighter.highlightColor", "blue"); }
 
 	static Ref<Function> FindFunction(const std::string& name)
 	{
@@ -130,8 +138,21 @@ protected:
 		}
 		return func;
 	}
+
+	std::vector<DisassemblyTextLine> CollectLLILLines(const Ref<LowLevelILFunction>& llil)
+	{
+		std::vector<DisassemblyTextLine> allLines;
+		for (const auto& block : llil->GetBasicBlocks())
+		{
+			DisassemblySettings settings;
+			std::vector<DisassemblyTextLine> lines = block->GetDisassemblyText(&settings);
+			m_Layer.ApplyToLowLevelILBlock(block, lines);
+			allLines.insert(allLines.end(), lines.begin(), lines.end());
+		}
+		return allLines;
+	}
 };
-// NOLINTEND(misc-use-internal-linkage)
+// NOLINTEND(misc-use-internal-linkage,cppcoreguidelines-non-private-member-variables-in-classes)
 
 TEST_F(ReturnHighlightTest, LLILReturnHighlighted)
 {
@@ -141,14 +162,7 @@ TEST_F(ReturnHighlightTest, LLILReturnHighlighted)
 	const Ref<LowLevelILFunction> llil = func->GetLowLevelIL();
 	ASSERT_NE(llil, nullptr);
 
-	std::vector<DisassemblyTextLine> allLines;
-	for (const auto& block : llil->GetBasicBlocks())
-	{
-		DisassemblySettings settings;
-		std::vector<DisassemblyTextLine> lines = block->GetDisassemblyText(&settings);
-		m_Layer.ApplyToLowLevelILBlock(block, lines);
-		allLines.insert(allLines.end(), lines.begin(), lines.end());
-	}
+	const std::vector<DisassemblyTextLine> allLines = CollectLLILLines(llil);
 
 	const auto* retLine = FindLineByAddr(allLines, AddRetAddr);
 	ASSERT_NE(retLine, nullptr) << "Could not find return line at 0x100000344";
@@ -233,6 +247,68 @@ TEST_F(ReturnHighlightTest, HLILBodyReturnHighlighted)
 	});
 	ASSERT_NE(nonRetLine, linearLines.end()) << "Could not find non-return line at 0x100000354";
 	EXPECT_FALSE(IsHighlighted(nonRetLine->contents)) << "Non-return line at 0x100000354 should not be highlighted";
+}
+
+TEST_F(ReturnHighlightTest, SettingChangesHighlightColor)
+{
+	Settings::Instance()->Set("returnHighlighter.highlightColor", "red");
+
+	const Ref<Function> func = FindFunction("add");
+	ASSERT_NE(func, nullptr);
+
+	const Ref<LowLevelILFunction> llil = func->GetLowLevelIL();
+	ASSERT_NE(llil, nullptr);
+
+	const std::vector<DisassemblyTextLine> allLines = CollectLLILLines(llil);
+
+	const auto* retLine = FindLineByAddr(allLines, AddRetAddr);
+	ASSERT_NE(retLine, nullptr);
+	EXPECT_TRUE(IsHighlightedWithColor(*retLine, RedHighlightColor));
+}
+
+TEST_F(ReturnHighlightTest, InvalidColorFallsBackToLastValid)
+{
+	Settings::Instance()->Set("returnHighlighter.highlightColor", "red");
+
+	const Ref<Function> func = FindFunction("add");
+	ASSERT_NE(func, nullptr);
+
+	const Ref<LowLevelILFunction> llil = func->GetLowLevelIL();
+	ASSERT_NE(llil, nullptr);
+
+	// First pass with "red" to establish last valid color
+	CollectLLILLines(llil);
+
+	// Now set an invalid color
+	Settings::Instance()->Set("returnHighlighter.highlightColor", "invalid");
+
+	const std::vector<DisassemblyTextLine> allLines = CollectLLILLines(llil);
+
+	const auto* retLine = FindLineByAddr(allLines, AddRetAddr);
+	ASSERT_NE(retLine, nullptr);
+	EXPECT_TRUE(IsHighlightedWithColor(*retLine, RedHighlightColor));
+}
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+TEST_F(ReturnHighlightTest, HexColorAppliesCustomHighlight)
+{
+	Settings::Instance()->Set("returnHighlighter.highlightColor", "#FF5500");
+
+	const Ref<Function> func = FindFunction("add");
+	ASSERT_NE(func, nullptr);
+
+	const Ref<LowLevelILFunction> llil = func->GetLowLevelIL();
+	ASSERT_NE(llil, nullptr);
+
+	const std::vector<DisassemblyTextLine> allLines = CollectLLILLines(llil);
+
+	const auto* retLine = FindLineByAddr(allLines, AddRetAddr);
+	ASSERT_NE(retLine, nullptr);
+	EXPECT_EQ(retLine->highlight.style, CustomHighlightColor);
+	EXPECT_EQ(retLine->highlight.r, 0xFF);
+	EXPECT_EQ(retLine->highlight.g, 0x55);
+	EXPECT_EQ(retLine->highlight.b, 0x00);
+	EXPECT_EQ(retLine->highlight.alpha, FullAlpha);
 }
 
 auto main(int argc, char** argv) -> int

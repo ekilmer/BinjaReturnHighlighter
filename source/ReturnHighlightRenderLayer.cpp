@@ -1,6 +1,10 @@
 #include "BinjaReturnHighlighter/ReturnHighlightRenderLayer.hpp"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include <binaryninjaapi.h>
@@ -11,19 +15,149 @@
 
 using namespace BinaryNinja;
 
+void RegisterReturnHighlighterSettings()
+{
+	auto settings = Settings::Instance();
+	settings->RegisterGroup("returnHighlighter", "Return Highlighter");
+	settings->RegisterSetting("returnHighlighter.highlightColor",
+		R"~({
+		"title": "Highlight Color",
+		"type": "string",
+		"default": "blue",
+		"description": "Color used to highlight return statements. Choose a preset or enter a custom hex color (e.g. #FF5500).",
+		"enum": ["blue", "green", "cyan", "red", "magenta", "yellow", "orange", "white", "black"],
+		"enumDescriptions": ["Blue", "Green", "Cyan", "Red", "Magenta", "Yellow", "Orange", "White", "Black"],
+		"ignore": ["SettingsProjectScope", "SettingsResourceScope"]
+		})~");
+}
+
 namespace {
 	constexpr int AlphaSolid = 255;
 
-	void HighLightReturnLine(DisassemblyTextLine& line)
+	struct RgbColor
 	{
-		line.highlight.style = StandardHighlightColor;
-		line.highlight.color = BlueHighlightColor;
-		line.highlight.mixColor = NoHighlightColor;
-		line.highlight.mix = 0;
-		line.highlight.r = 0;
-		line.highlight.g = 0;
-		line.highlight.b = 0;
-		line.highlight.alpha = AlphaSolid;
+		uint8_t r;
+		uint8_t g;
+		uint8_t b;
+	};
+
+	constexpr size_t HexColorLen = 6;
+	constexpr uint32_t RedShift = 16;
+	constexpr uint32_t GreenShift = 8;
+	constexpr uint32_t ByteMask = 0xFF;
+	constexpr int HexBase = 16;
+
+	std::optional<RgbColor> ParseHexColor(const std::string& str)
+	{
+		std::string hex = str;
+		if (!hex.empty() && hex.front() == '#')
+		{
+			hex = hex.substr(1);
+		}
+		if (hex.size() != HexColorLen)
+		{
+			return std::nullopt;
+		}
+		uint32_t val = 0;
+		try
+		{
+			val = static_cast<uint32_t>(std::stoul(hex, nullptr, HexBase));
+		}
+		catch (...)
+		{
+			return std::nullopt;
+		}
+		return RgbColor {.r = static_cast<uint8_t>((val >> RedShift) & ByteMask),
+			.g = static_cast<uint8_t>((val >> GreenShift) & ByteMask),
+			.b = static_cast<uint8_t>(val & ByteMask)};
+	}
+
+	std::optional<BNHighlightStandardColor> MapColorName(const std::string& name)
+	{
+		if (name == "blue")
+		{
+			return BlueHighlightColor;
+		}
+		if (name == "green")
+		{
+			return GreenHighlightColor;
+		}
+		if (name == "cyan")
+		{
+			return CyanHighlightColor;
+		}
+		if (name == "red")
+		{
+			return RedHighlightColor;
+		}
+		if (name == "magenta")
+		{
+			return MagentaHighlightColor;
+		}
+		if (name == "yellow")
+		{
+			return YellowHighlightColor;
+		}
+		if (name == "orange")
+		{
+			return OrangeHighlightColor;
+		}
+		if (name == "white")
+		{
+			return WhiteHighlightColor;
+		}
+		if (name == "black")
+		{
+			return BlackHighlightColor;
+		}
+		return std::nullopt;
+	}
+
+	BNHighlightColor MakeStandardHighlight(BNHighlightStandardColor color)
+	{
+		return {.style = StandardHighlightColor,
+			.color = color,
+			.mixColor = NoHighlightColor,
+			.mix = 0,
+			.r = 0,
+			.g = 0,
+			.b = 0,
+			.alpha = AlphaSolid};
+	}
+
+	BNHighlightColor MakeCustomHighlight(uint8_t red, uint8_t green, uint8_t blue)
+	{
+		return {.style = CustomHighlightColor,
+			.color = NoHighlightColor,
+			.mixColor = NoHighlightColor,
+			.mix = 0,
+			.r = red,
+			.g = green,
+			.b = blue,
+			.alpha = AlphaSolid};
+	}
+
+	BNHighlightColor ResolveHighlightColor()
+	{
+		static BNHighlightColor lastValid = MakeStandardHighlight(BlueHighlightColor);
+
+		const std::string colorSetting = Settings::Instance()->Get<std::string>("returnHighlighter.highlightColor");
+
+		if (auto color = MapColorName(colorSetting))
+		{
+			lastValid = MakeStandardHighlight(*color);
+		}
+		else if (auto rgb = ParseHexColor(colorSetting))
+		{
+			lastValid = MakeCustomHighlight(rgb->r, rgb->g, rgb->b);
+		}
+		else
+		{
+			LogWarn(  // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+				"ReturnHighlighter: unrecognized color '%s', using last valid color", colorSetting.c_str());
+		}
+
+		return lastValid;
 	}
 
 	bool LineContainsKeywordToken(DisassemblyTextLine& line)
@@ -53,13 +187,14 @@ namespace {
 void ReturnHighlightRenderLayer::ApplyToLowLevelILBlock(
 	const Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
 {
+	const BNHighlightColor highlight = ResolveHighlightColor();
 	Ref<LowLevelILFunction> const llilFunc = block->GetLowLevelILFunction();
 	for (auto& line : lines)
 	{
 		if (LowLevelILInstruction const instr = llilFunc->GetInstruction(line.instrIndex);
 			LlilInstructionIsReturn(instr) && LineContainsKeywordToken(line))
 		{
-			HighLightReturnLine(line);
+			line.highlight = highlight;
 		}
 	}
 }
@@ -67,13 +202,14 @@ void ReturnHighlightRenderLayer::ApplyToLowLevelILBlock(
 void ReturnHighlightRenderLayer::ApplyToMediumLevelILBlock(
 	const Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
 {
+	const BNHighlightColor highlight = ResolveHighlightColor();
 	Ref<MediumLevelILFunction> const mlilFunc = block->GetMediumLevelILFunction();
 	for (auto& line : lines)
 	{
 		if (MediumLevelILInstruction const instr = mlilFunc->GetInstruction(line.instrIndex);
 			MlilInstructionIsReturn(instr) && LineContainsKeywordToken(line))
 		{
-			HighLightReturnLine(line);
+			line.highlight = highlight;
 		}
 	}
 }
@@ -81,13 +217,14 @@ void ReturnHighlightRenderLayer::ApplyToMediumLevelILBlock(
 void ReturnHighlightRenderLayer::ApplyToHighLevelILBlock(
 	Ref<BasicBlock> const block, std::vector<DisassemblyTextLine>& lines)
 {
+	const BNHighlightColor highlight = ResolveHighlightColor();
 	Ref<HighLevelILFunction> const hlilFunc = block->GetHighLevelILFunction();
 	for (auto& line : lines)
 	{
 		if (HighLevelILInstruction const instr = hlilFunc->GetInstruction(line.instrIndex);
 			HlilInstructionIsReturn(instr) && LineContainsKeywordToken(line))
 		{
-			HighLightReturnLine(line);
+			line.highlight = highlight;
 		}
 	}
 }
@@ -95,6 +232,7 @@ void ReturnHighlightRenderLayer::ApplyToHighLevelILBlock(
 void ReturnHighlightRenderLayer::ApplyToHighLevelILBody(
 	const Ref<Function> function, std::vector<LinearDisassemblyLine>& lines)
 {
+	const BNHighlightColor highlight = ResolveHighlightColor();
 	Ref<HighLevelILFunction> const hlilFunc = function->GetHighLevelIL();
 	for (auto& linearLine : lines)
 	{
@@ -103,7 +241,7 @@ void ReturnHighlightRenderLayer::ApplyToHighLevelILBody(
 		if (HighLevelILInstruction const instr = hlilFunc->GetInstruction(line.instrIndex);
 			HlilInstructionIsReturn(instr) && LineContainsKeywordToken(line))
 		{
-			HighLightReturnLine(line);
+			line.highlight = highlight;
 		}
 	}
 }
