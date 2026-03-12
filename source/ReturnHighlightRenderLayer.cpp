@@ -137,7 +137,7 @@ namespace {
 			.alpha = AlphaSolid};
 	}
 
-	BNHighlightColor ResolveHighlightColor()
+	BNHighlightColor ResolveHighlightColor(Logger& logger)
 	{
 		static BNHighlightColor lastValid = MakeStandardHighlight(BlueHighlightColor);
 
@@ -153,8 +153,8 @@ namespace {
 		}
 		else
 		{
-			LogWarn(  // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
-				"ReturnHighlighter: unrecognized color '%s', using last valid color", colorSetting.c_str());
+			logger.LogWarn(  // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+				"unrecognized color '%s', using last valid color", colorSetting.c_str());
 		}
 
 		return lastValid;
@@ -187,7 +187,7 @@ namespace {
 void ReturnHighlightRenderLayer::ApplyToLowLevelILBlock(
 	const Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
 {
-	const BNHighlightColor highlight = ResolveHighlightColor();
+	const BNHighlightColor highlight = ResolveHighlightColor(*m_logger);
 	Ref<LowLevelILFunction> const llilFunc = block->GetLowLevelILFunction();
 	for (auto& line : lines)
 	{
@@ -202,7 +202,7 @@ void ReturnHighlightRenderLayer::ApplyToLowLevelILBlock(
 void ReturnHighlightRenderLayer::ApplyToMediumLevelILBlock(
 	const Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
 {
-	const BNHighlightColor highlight = ResolveHighlightColor();
+	const BNHighlightColor highlight = ResolveHighlightColor(*m_logger);
 	Ref<MediumLevelILFunction> const mlilFunc = block->GetMediumLevelILFunction();
 	for (auto& line : lines)
 	{
@@ -217,7 +217,7 @@ void ReturnHighlightRenderLayer::ApplyToMediumLevelILBlock(
 void ReturnHighlightRenderLayer::ApplyToHighLevelILBlock(
 	Ref<BasicBlock> const block, std::vector<DisassemblyTextLine>& lines)
 {
-	const BNHighlightColor highlight = ResolveHighlightColor();
+	const BNHighlightColor highlight = ResolveHighlightColor(*m_logger);
 	Ref<HighLevelILFunction> const hlilFunc = block->GetHighLevelILFunction();
 	for (auto& line : lines)
 	{
@@ -232,7 +232,7 @@ void ReturnHighlightRenderLayer::ApplyToHighLevelILBlock(
 void ReturnHighlightRenderLayer::ApplyToHighLevelILBody(
 	const Ref<Function> function, std::vector<LinearDisassemblyLine>& lines)
 {
-	const BNHighlightColor highlight = ResolveHighlightColor();
+	const BNHighlightColor highlight = ResolveHighlightColor(*m_logger);
 	Ref<HighLevelILFunction> const hlilFunc = function->GetHighLevelIL();
 	for (auto& linearLine : lines)
 	{
