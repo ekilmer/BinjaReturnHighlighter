@@ -14,19 +14,19 @@ using namespace BinaryNinja;
 
 namespace {
 
-	constexpr uint8_t KFullAlpha = 255;
+	constexpr uint8_t FullAlpha = 255;
 
 	// Addresses from the test binary (test/data/simple, compiled from test/data/simple.c).
 	// _add: 0x100000328, ret at 0x100000344
 	// _main: 0x100000348, ret at 0x10000036c
-	constexpr uint64_t KAddRetAddr = 0x100000344;
-	constexpr uint64_t KAddNonRetAddr = 0x10000032c;
-	constexpr uint64_t KMainRetAddr = 0x10000036c;
-	constexpr uint64_t KMainNonRetAddr = 0x100000354;
+	constexpr uint64_t AddRetAddr = 0x100000344;
+	constexpr uint64_t AddNonRetAddr = 0x10000032c;
+	constexpr uint64_t MainRetAddr = 0x10000036c;
+	constexpr uint64_t MainNonRetAddr = 0x100000354;
 
-	// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
-	BinaryView* GlobalBv = nullptr;
-	// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+	// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,bugprone-throwing-static-initialization)
+	Ref<BinaryView> GlobalBv;
+	// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,bugprone-throwing-static-initialization)
 
 	Ref<Function> FindFunctionByName(const std::string& name)
 	{
@@ -44,7 +44,7 @@ namespace {
 	bool IsHighlighted(const DisassemblyTextLine& line)
 	{
 		return line.highlight.style == StandardHighlightColor && line.highlight.color == BlueHighlightColor
-			&& line.highlight.alpha == KFullAlpha;
+			&& line.highlight.alpha == FullAlpha;
 	}
 
 	const DisassemblyTextLine* FindLineByAddr(const std::vector<DisassemblyTextLine>& lines, uint64_t addr)
@@ -99,8 +99,7 @@ namespace {
 			ASSERT_NE(binaryView, nullptr) << "Failed to load test binary: " << testBinary;
 			ASSERT_NE(binaryView->GetTypeName(), "Raw") << "Binary loaded as Raw view";
 			binaryView->UpdateAnalysisAndWait();
-			GlobalBv = binaryView.GetPtr();
-			GlobalBv->AddRef();
+			GlobalBv = binaryView;
 		}
 
 		void TearDown() override
@@ -108,7 +107,6 @@ namespace {
 			if (GlobalBv != nullptr)
 			{
 				GlobalBv->GetFile()->Close();
-				GlobalBv->Release();
 				GlobalBv = nullptr;
 			}
 			BNShutdown();
@@ -152,11 +150,11 @@ TEST_F(ReturnHighlightTest, LLILReturnHighlighted)
 		allLines.insert(allLines.end(), lines.begin(), lines.end());
 	}
 
-	const auto* retLine = FindLineByAddr(allLines, KAddRetAddr);
+	const auto* retLine = FindLineByAddr(allLines, AddRetAddr);
 	ASSERT_NE(retLine, nullptr) << "Could not find return line at 0x100000344";
 	EXPECT_TRUE(IsHighlighted(*retLine)) << "Return line at 0x100000344 should be highlighted";
 
-	const auto* nonRetLine = FindLineByAddr(allLines, KAddNonRetAddr);
+	const auto* nonRetLine = FindLineByAddr(allLines, AddNonRetAddr);
 	ASSERT_NE(nonRetLine, nullptr) << "Could not find non-return line at 0x10000032c";
 	EXPECT_FALSE(IsHighlighted(*nonRetLine)) << "Non-return line at 0x10000032c should not be highlighted";
 }
@@ -178,11 +176,11 @@ TEST_F(ReturnHighlightTest, MLILReturnHighlighted)
 		allLines.insert(allLines.end(), lines.begin(), lines.end());
 	}
 
-	const auto* retLine = FindLineByAddr(allLines, KAddRetAddr);
+	const auto* retLine = FindLineByAddr(allLines, AddRetAddr);
 	ASSERT_NE(retLine, nullptr) << "Could not find return line at 0x100000344";
 	EXPECT_TRUE(IsHighlighted(*retLine)) << "Return line at 0x100000344 should be highlighted";
 
-	const auto* nonRetLine = FindLineByAddr(allLines, KAddNonRetAddr);
+	const auto* nonRetLine = FindLineByAddr(allLines, AddNonRetAddr);
 	ASSERT_NE(nonRetLine, nullptr) << "Could not find non-return line at 0x10000032c";
 	EXPECT_FALSE(IsHighlighted(*nonRetLine)) << "Non-return line at 0x10000032c should not be highlighted";
 }
@@ -204,11 +202,11 @@ TEST_F(ReturnHighlightTest, HLILBlockReturnHighlighted)
 		allLines.insert(allLines.end(), lines.begin(), lines.end());
 	}
 
-	const auto* retLine = FindLineByAddr(allLines, KMainRetAddr);
+	const auto* retLine = FindLineByAddr(allLines, MainRetAddr);
 	ASSERT_NE(retLine, nullptr) << "Could not find return line at 0x10000036c";
 	EXPECT_TRUE(IsHighlighted(*retLine)) << "Return line at 0x10000036c should be highlighted";
 
-	const auto* nonRetLine = FindLineByAddr(allLines, KMainNonRetAddr);
+	const auto* nonRetLine = FindLineByAddr(allLines, MainNonRetAddr);
 	ASSERT_NE(nonRetLine, nullptr) << "Could not find non-return line at 0x100000354";
 	EXPECT_FALSE(IsHighlighted(*nonRetLine)) << "Non-return line at 0x100000354 should not be highlighted";
 }
@@ -225,13 +223,13 @@ TEST_F(ReturnHighlightTest, HLILBodyReturnHighlighted)
 	m_Layer.ApplyToHighLevelILBody(func, linearLines);
 
 	const auto retLine = std::ranges::find_if(linearLines, [](const LinearDisassemblyLine& line) {
-		return line.contents.addr == KMainRetAddr;
+		return line.contents.addr == MainRetAddr;
 	});
 	ASSERT_NE(retLine, linearLines.end()) << "Could not find return line at 0x10000036c";
 	EXPECT_TRUE(IsHighlighted(retLine->contents)) << "Return line at 0x10000036c should be highlighted";
 
 	const auto nonRetLine = std::ranges::find_if(linearLines, [](const LinearDisassemblyLine& line) {
-		return line.contents.addr == KMainNonRetAddr;
+		return line.contents.addr == MainNonRetAddr;
 	});
 	ASSERT_NE(nonRetLine, linearLines.end()) << "Could not find non-return line at 0x100000354";
 	EXPECT_FALSE(IsHighlighted(nonRetLine->contents)) << "Non-return line at 0x100000354 should not be highlighted";
