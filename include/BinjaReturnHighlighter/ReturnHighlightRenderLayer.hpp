@@ -5,6 +5,8 @@
 
 #include <binaryninjaapi.h>
 
+void RegisterReturnHighlighterSettings();
+
 class ReturnHighlightRenderLayer final : public BinaryNinja::RenderLayer
 {
 public:

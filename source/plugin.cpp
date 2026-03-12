@@ -11,6 +11,7 @@ extern "C"
 
 	BINARYNINJAPLUGIN bool CorePluginInit()
 	{
+		RegisterReturnHighlighterSettings();
 		static auto* layer = new ReturnHighlightRenderLayer();  // NOLINT(cppcoreguidelines-owning-memory)
 		RenderLayer::Register(layer, DisabledByDefaultRenderLayerDefaultEnableState);
 		return true;
