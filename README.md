@@ -114,6 +114,21 @@ Create a `CMakeUserPresets.json` file with the following (for macOS), assuming y
 }
 ```
 
+### Testing
+
+Integration tests use [Google Test](https://github.com/google/googletest) and require a local Binary Ninja installation (the tests load a real binary via headless mode). Tests are only built in developer mode when `FindBinaryNinjaCore` succeeds.
+
+```bash
+cmake --build build
+ctest --test-dir build
+```
+
+The test binary (`test/data/simple`) is a pre-compiled Mach-O from `test/data/simple.c`. To recompile it (e.g., after changing the source):
+
+```bash
+cc -o test/data/simple test/data/simple.c
+```
+
 ### Format Code
 
 ```bash

@@ -3,7 +3,8 @@
     "name": "binja-return-highlighter-plugin",
     "version-date": "2026-03-05",
     "dependencies": [
-        "fmt"
+        "fmt",
+        "gtest"
     ],
     "description": "Plugin to highlight return instructions in Binary Ninja ILs",
     "$builtin-baseline-comment": "Commit SHA for tag 2026.02.27",
