@@ -181,8 +181,7 @@ BNHighlightColor ReturnHighlightRenderLayer::ResolveHighlightColor() const
 	}
 	else
 	{
-		m_logger->LogWarn(  // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
-			"unrecognized color '%s', using last valid color", colorSetting.c_str());
+		m_logger->LogWarnF("unrecognized color '{}', using last valid color", colorSetting);
 	}
 
 	return m_cachedHighlight;
