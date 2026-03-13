@@ -16,5 +16,18 @@ string(STRIP "${CMAKE_CXX_FLAGS}" CMAKE_CXX_FLAGS)
 set(CMAKE_SKIP_LINTING ON)
 
 # Make the binaryninja-api code available
-set(HEADLESS ON)
+# When Qt6 is found, build with UI support so binaryninjaui target is created.
+# Otherwise, build headless (for tests and headless environments).
+#
+# Set BN_QT_DIR to the Binary Ninja Qt installation (e.g. .../qt/Qt/6.10.1/clang_64)
+# to ensure the plugin links against the same Qt that Binary Ninja ships.
+if(BN_QT_DIR)
+  list(PREPEND CMAKE_PREFIX_PATH "${BN_QT_DIR}")
+endif()
+find_package(Qt6 COMPONENTS Core Gui Widgets QUIET)
+if(Qt6_FOUND)
+  set(HEADLESS OFF)
+else()
+  set(HEADLESS ON)
+endif()
 add_subdirectory(binaryninja-api EXCLUDE_FROM_ALL SYSTEM)

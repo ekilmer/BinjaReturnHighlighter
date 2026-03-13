@@ -14,9 +14,8 @@ class ReturnHighlightRenderLayer final : public BinaryNinja::RenderLayer
 public:
 	static constexpr const char* LoggerName = "ReturnHighlighter";
 
-	ReturnHighlightRenderLayer()
-		: RenderLayer("Highlight Return Statements")
-		, m_logger(BinaryNinja::LogRegistry::CreateLogger(LoggerName))
+	ReturnHighlightRenderLayer() :
+		RenderLayer("Highlight Return Statements"), m_logger(BinaryNinja::LogRegistry::CreateLogger(LoggerName))
 	{}
 	void ApplyToLowLevelILBlock(
 		BinaryNinja::Ref<BinaryNinja::BasicBlock> block, std::vector<BinaryNinja::DisassemblyTextLine>& lines) override;

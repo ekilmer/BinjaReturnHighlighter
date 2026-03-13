@@ -9,6 +9,8 @@
 
 #include <binaryninjaapi.h>
 #include <binaryninjacore.h>
+
+#include "BinjaReturnHighlighter/ColorDefs.hpp"
 #include <highlevelilinstruction.h>
 #include <lowlevelilinstruction.h>
 #include <mediumlevelilinstruction.h>
@@ -74,41 +76,9 @@ namespace {
 
 	std::optional<BNHighlightStandardColor> MapColorName(const std::string& name)
 	{
-		if (name == "blue")
+		if (auto def = FindColorByName(name))
 		{
-			return BlueHighlightColor;
-		}
-		if (name == "green")
-		{
-			return GreenHighlightColor;
-		}
-		if (name == "cyan")
-		{
-			return CyanHighlightColor;
-		}
-		if (name == "red")
-		{
-			return RedHighlightColor;
-		}
-		if (name == "magenta")
-		{
-			return MagentaHighlightColor;
-		}
-		if (name == "yellow")
-		{
-			return YellowHighlightColor;
-		}
-		if (name == "orange")
-		{
-			return OrangeHighlightColor;
-		}
-		if (name == "white")
-		{
-			return WhiteHighlightColor;
-		}
-		if (name == "black")
-		{
-			return BlackHighlightColor;
+			return (*def)->bnColor;
 		}
 		return std::nullopt;
 	}

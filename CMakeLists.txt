@@ -30,6 +30,7 @@ target_sources(
     FILE_SET HEADERS
     BASE_DIRS include
     FILES
+        include/BinjaReturnHighlighter/ColorDefs.hpp
         include/BinjaReturnHighlighter/ReturnHighlightRenderLayer.hpp
 )
 
@@ -60,6 +61,33 @@ set_target_properties(
 )
 
 target_link_libraries(BinjaReturnHighlighter_plugin PUBLIC BinjaReturnHighlighter::core)
+
+# ---- Optional UI support (Qt6 color picker) ----
+
+if(TARGET binaryninjaui)
+  find_package(Qt6 COMPONENTS Core Gui Widgets QUIET)
+  if(Qt6_FOUND)
+    set_target_properties(BinjaReturnHighlighter_plugin PROPERTIES AUTOMOC ON)
+
+    target_sources(
+        BinjaReturnHighlighter_plugin
+        PRIVATE
+            source/ColorPickerAction.cpp
+            source/ui_plugin.cpp
+
+        PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS include
+        FILES
+            include/BinjaReturnHighlighter/ColorPickerAction.hpp
+    )
+
+    target_link_libraries(
+        BinjaReturnHighlighter_plugin
+        PUBLIC binaryninjaui Qt6::Core Qt6::Gui Qt6::Widgets
+    )
+  endif()
+endif()
 
 # ---- Install rules ----
 
