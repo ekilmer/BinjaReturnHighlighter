@@ -99,6 +99,7 @@ namespace {
 			SetBundledPluginDirectory(pluginDir);
 			InitPlugins();
 			RegisterReturnHighlighterSettings();
+			Settings::Instance()->LoadSettingsFile("", SettingsUserScope);
 
 			const std::string testBinary = TEST_DATA_DIR "simple";
 			const Ref<BinaryView> binaryView = BinaryNinja::Load(testBinary);
@@ -127,7 +128,7 @@ class ReturnHighlightTest : public ::testing::Test
 protected:
 	ReturnHighlightRenderLayer m_Layer;
 
-	void TearDown() override { Settings::Instance()->Set("returnHighlighter.highlightColor", "blue"); }
+	void TearDown() override { Settings::Instance()->Reset("returnHighlighter.highlightColor"); }
 
 	static Ref<Function> FindFunction(const std::string& name)
 	{
