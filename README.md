@@ -129,6 +129,22 @@ The test binary (`test/data/simple`) is a pre-compiled Mach-O from `test/data/si
 cc -o test/data/simple test/data/simple.c
 ```
 
+### Pre-commit Hooks
+
+This project uses [prek](https://github.com/j178/prek) for pre-commit hooks. Install it once to enable automatic checks before each commit:
+
+```bash
+prek install
+```
+
+Hooks include trailing whitespace removal, EOF newline fixing, YAML/TOML/JSON validation, merge conflict detection, large file checks, and automatic clang-format via the project's CMake lint script.
+
+To run all hooks manually against the full repo:
+
+```bash
+prek run --all-files
+```
+
 ### Format Code
 
 ```bash
