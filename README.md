@@ -1,17 +1,18 @@
 # Binary Ninja Return Statement Highlighter Plugin
 
-This Binary Ninja plugin provides visual highlighting of return statements across all IL (Intermediate Language) views. It helps analysts quickly identify function exit points and control flow patterns by highlighting return statements in a distinctive color.
+This Binary Ninja plugin provides visual highlighting of return and tailcall statements across all IL (Intermediate Language) views. It helps analysts quickly identify function exit points and control flow patterns by highlighting these statements in a distinctive color.
 
 The API to perform efficient highlighting requires Binary Ninja 5.0.7290-stable+. **However**, this project realistically needs a newer version of the binaryninja-api repository to build effectively.
 
 ## Features
 
-- Highlights all return statements across different IL views
+- Highlights all return and tailcall statements across different IL views
 - Works in multiple IL representations:
   - Low Level IL (LLIL)
   - Medium Level IL (MLIL)
   - High Level IL (HLIL)
-- Uses a semi-transparent blue highlight for easy visibility
+- Configurable highlight color: 9 preset colors (blue default) + custom hex via Binary Ninja settings
+- Color picker UI accessible via Plugins > Return Highlighter > Choose Color...
 - Integrates seamlessly with Binary Ninja's [RenderLayer](https://dev-api.binary.ninja/cpp/class_binary_ninja_1_1_render_layer.html) system
 
 ![Screenshot of plugin highlighting return statements](/screenshot.png?raw=true "Screenshot of Plugin")
@@ -22,7 +23,7 @@ The API to perform efficient highlighting requires Binary Ninja 5.0.7290-stable+
 2. In any IL view, click the hamburger menu button (top-right corner of the view)
 3. Hover over "Render Layers"
 4. Enable the "Highlight Return Statements" layer
-5. All return statements will now be highlighted with a semi-transparent blue background
+5. All return and tailcall statements will now be highlighted with a colored background (blue by default, configurable in settings)
 
 ## Installation
 
@@ -66,13 +67,9 @@ $ cmake --build build --target install
 The plugin implements a custom `ReturnHighlightLayer` that:
 
 1. Registers itself for all IL views during plugin initialization
-2. Analyzes each IL operation for return statements
-3. Applies blue highlighting with 50% opacity to lines containing return instructions
+2. Analyzes each IL operation for return and tailcall statements
+3. Highlights matching lines using a configurable color (default: blue, full opacity) resolved from the `returnHighlighter.highlightColor` setting
 4. Uses Binary Ninja's [RenderLayer](https://dev-api.binary.ninja/cpp/class_binary_ninja_1_1_render_layer.html) API to integrate with the UI
-
-## Improvements
-
-- Allow the user to choose a color for line highlighting
 
 ## Using as a Template
 
