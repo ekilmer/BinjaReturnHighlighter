@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -65,7 +66,11 @@ namespace {
 		{
 			val = static_cast<uint32_t>(std::stoul(hex, nullptr, HexBase));
 		}
-		catch (...)
+		catch (const std::invalid_argument&)
+		{
+			return std::nullopt;
+		}
+		catch (const std::out_of_range&)
 		{
 			return std::nullopt;
 		}
@@ -107,29 +112,6 @@ namespace {
 			.alpha = AlphaSolid};
 	}
 
-	BNHighlightColor ResolveHighlightColor(Logger& logger)
-	{
-		static BNHighlightColor lastValid = MakeStandardHighlight(BlueHighlightColor);
-
-		const std::string colorSetting = Settings::Instance()->Get<std::string>("returnHighlighter.highlightColor");
-
-		if (auto color = MapColorName(colorSetting))
-		{
-			lastValid = MakeStandardHighlight(*color);
-		}
-		else if (auto rgb = ParseHexColor(colorSetting))
-		{
-			lastValid = MakeCustomHighlight(rgb->r, rgb->g, rgb->b);
-		}
-		else
-		{
-			logger.LogWarn(  // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
-				"unrecognized color '%s', using last valid color", colorSetting.c_str());
-		}
-
-		return lastValid;
-	}
-
 	bool LineContainsKeywordToken(DisassemblyTextLine& line)
 	{
 		return std::ranges::any_of(line.tokens, [](const auto& token) { return token.type == KeywordToken; });
@@ -152,66 +134,84 @@ namespace {
 		const auto operation = instruction.operation;
 		return operation == HLIL_RET || operation == HLIL_TAILCALL;
 	}
+
+	DisassemblyTextLine& GetDisasmLine(DisassemblyTextLine& line)
+	{
+		return line;
+	}
+	DisassemblyTextLine& GetDisasmLine(LinearDisassemblyLine& line)
+	{
+		return line.contents;
+	}
+
+	template <typename ILFuncT, typename LineT, typename IsReturnFn>
+	void HighlightReturnLines(
+		BNHighlightColor highlight, const Ref<ILFuncT>& ilFunc, std::vector<LineT>& lines, IsReturnFn isReturn)
+	{
+		for (auto& line : lines)
+		{
+			DisassemblyTextLine& disasmLine = GetDisasmLine(line);
+			if (auto const instr = ilFunc->GetInstruction(disasmLine.instrIndex);
+				isReturn(instr) && LineContainsKeywordToken(disasmLine))
+			{
+				disasmLine.highlight = highlight;
+			}
+		}
+	}
 }  // namespace
+
+BNHighlightColor ReturnHighlightRenderLayer::ResolveHighlightColor() const
+{
+	const std::string colorSetting = Settings::Instance()->Get<std::string>("returnHighlighter.highlightColor");
+
+	if (colorSetting == m_cachedColorSetting)
+	{
+		return m_cachedHighlight;
+	}
+
+	if (auto color = MapColorName(colorSetting))
+	{
+		m_cachedHighlight = MakeStandardHighlight(*color);
+		m_cachedColorSetting = colorSetting;
+	}
+	else if (auto rgb = ParseHexColor(colorSetting))
+	{
+		m_cachedHighlight = MakeCustomHighlight(rgb->r, rgb->g, rgb->b);
+		m_cachedColorSetting = colorSetting;
+	}
+	else
+	{
+		m_logger->LogWarn(  // NOLINT(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
+			"unrecognized color '%s', using last valid color", colorSetting.c_str());
+	}
+
+	return m_cachedHighlight;
+}
 
 void ReturnHighlightRenderLayer::ApplyToLowLevelILBlock(
 	const Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
 {
-	const BNHighlightColor highlight = ResolveHighlightColor(*m_logger);
-	Ref<LowLevelILFunction> const llilFunc = block->GetLowLevelILFunction();
-	for (auto& line : lines)
-	{
-		if (LowLevelILInstruction const instr = llilFunc->GetInstruction(line.instrIndex);
-			LlilInstructionIsReturn(instr) && LineContainsKeywordToken(line))
-		{
-			line.highlight = highlight;
-		}
-	}
+	const BNHighlightColor highlight = ResolveHighlightColor();
+	HighlightReturnLines(highlight, block->GetLowLevelILFunction(), lines, LlilInstructionIsReturn);
 }
 
 void ReturnHighlightRenderLayer::ApplyToMediumLevelILBlock(
 	const Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
 {
-	const BNHighlightColor highlight = ResolveHighlightColor(*m_logger);
-	Ref<MediumLevelILFunction> const mlilFunc = block->GetMediumLevelILFunction();
-	for (auto& line : lines)
-	{
-		if (MediumLevelILInstruction const instr = mlilFunc->GetInstruction(line.instrIndex);
-			MlilInstructionIsReturn(instr) && LineContainsKeywordToken(line))
-		{
-			line.highlight = highlight;
-		}
-	}
+	const BNHighlightColor highlight = ResolveHighlightColor();
+	HighlightReturnLines(highlight, block->GetMediumLevelILFunction(), lines, MlilInstructionIsReturn);
 }
 
 void ReturnHighlightRenderLayer::ApplyToHighLevelILBlock(
 	Ref<BasicBlock> const block, std::vector<DisassemblyTextLine>& lines)
 {
-	const BNHighlightColor highlight = ResolveHighlightColor(*m_logger);
-	Ref<HighLevelILFunction> const hlilFunc = block->GetHighLevelILFunction();
-	for (auto& line : lines)
-	{
-		if (HighLevelILInstruction const instr = hlilFunc->GetInstruction(line.instrIndex);
-			HlilInstructionIsReturn(instr) && LineContainsKeywordToken(line))
-		{
-			line.highlight = highlight;
-		}
-	}
+	const BNHighlightColor highlight = ResolveHighlightColor();
+	HighlightReturnLines(highlight, block->GetHighLevelILFunction(), lines, HlilInstructionIsReturn);
 }
 
 void ReturnHighlightRenderLayer::ApplyToHighLevelILBody(
 	const Ref<Function> function, std::vector<LinearDisassemblyLine>& lines)
 {
-	const BNHighlightColor highlight = ResolveHighlightColor(*m_logger);
-	Ref<HighLevelILFunction> const hlilFunc = function->GetHighLevelIL();
-	for (auto& linearLine : lines)
-	{
-		DisassemblyTextLine& line = linearLine.contents;
-
-		if (HighLevelILInstruction const instr = hlilFunc->GetInstruction(line.instrIndex);
-			HlilInstructionIsReturn(instr) && LineContainsKeywordToken(line))
-		{
-			line.highlight = highlight;
-		}
-	}
+	const BNHighlightColor highlight = ResolveHighlightColor();
+	HighlightReturnLines(highlight, function->GetHighLevelIL(), lines, HlilInstructionIsReturn);
 }
