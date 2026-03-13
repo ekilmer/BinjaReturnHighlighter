@@ -154,18 +154,39 @@ Requires CMake 4.2.0+ for [`CMAKE_SKIP_LINTING`](https://cmake.org/cmake/help/la
 
 ### Sanitizers
 
-Run from repository root:
+Build the plugin with the ASan preset and install it:
+
+```bash
+cmake --preset dev-macos-asan
+cmake --build build-asan
+cmake --build build-asan --target install
+```
+
+Then launch Binary Ninja with the ASan runtime injected. The `asan.supp` file suppresses leaks from system libraries and Binary Ninja itself, so only leaks originating from plugins are reported.
+
+**Linux:**
 
 ```bash
 export ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=asan.supp
 LD_PRELOAD="/usr/lib/clang/20/lib/x86_64-redhat-linux-gnu/libclang_rt.asan.so" ~/binaryninja/binaryninja
 ```
 
-Or on macOS (still some issues I need to figure out...)
+**macOS (Homebrew LLVM):**
+
+The ASan preset uses Homebrew Clang, so use the matching ASan runtime. Adjust the LLVM version path as needed:
 
 ```bash
-export ASAN_OPTIONS=detect_leaks=1
-DYLD_INSERT_LIBRARIES=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/lib/darwin/libclang_rt.asan_osx_dynamic.dylib /Applications/Binary\ Ninja.app/Contents/MacOS/binaryninja
-# or if built with homebrew clang
-DYLD_INSERT_LIBRARIES=/opt/homebrew/Cellar/llvm/22.1.0/lib/clang/22/lib/darwin/libclang_rt.asan_osx_dynamic.dylib /Applications/Binary\ Ninja.app/Contents/MacOS/binaryninja
+export ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=asan.supp
+DYLD_INSERT_LIBRARIES=/opt/homebrew/Cellar/llvm/22.1.0/lib/clang/22/lib/darwin/libclang_rt.asan_osx_dynamic.dylib \
+  /Applications/Binary\ Ninja.app/Contents/MacOS/binaryninja
+```
+
+**macOS (Xcode Clang):**
+
+If you build with Xcode's clang instead, use the Xcode ASan runtime:
+
+```bash
+export ASAN_OPTIONS=detect_leaks=1 LSAN_OPTIONS=suppressions=asan.supp
+DYLD_INSERT_LIBRARIES=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/lib/darwin/libclang_rt.asan_osx_dynamic.dylib \
+  /Applications/Binary\ Ninja.app/Contents/MacOS/binaryninja
 ```

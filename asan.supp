@@ -1,5 +1,5 @@
-# Try to ignore everything but ~/.binaryninja/plugins
-# (Not sure if these ignores miss true positives...)
+# Suppress leaks from system libraries and Binary Ninja itself,
+# so only leaks from plugins (in ~/.binaryninja/plugins) are reported.
 
 # Ignore system libraries
 leak:/usr/lib/lib*
@@ -9,3 +9,4 @@ leak:/lib64/*
 
 # Ignore Binary Ninja installation
 leak:*/binaryninja/*
+leak:/Applications/*
