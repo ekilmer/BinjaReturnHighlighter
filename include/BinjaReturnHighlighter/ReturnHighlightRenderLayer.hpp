@@ -24,6 +24,8 @@ public:
 		RenderLayer("Highlight Return Statements"), m_logger(BinaryNinja::LogRegistry::CreateLogger(LoggerName)),
 		m_cachedHighlight {}
 	{}
+	void ApplyToDisassemblyBlock(
+		BinaryNinja::Ref<BinaryNinja::BasicBlock> block, std::vector<BinaryNinja::DisassemblyTextLine>& lines) override;
 	void ApplyToLowLevelILBlock(
 		BinaryNinja::Ref<BinaryNinja::BasicBlock> block, std::vector<BinaryNinja::DisassemblyTextLine>& lines) override;
 	void ApplyToMediumLevelILBlock(
