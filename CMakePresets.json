@@ -156,11 +156,17 @@
       "hidden": true
     },
     {
+      "name": "sanitize",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Sanitize"
+      }
+    },
+    {
       "name": "ci-sanitize",
       "binaryDir": "${sourceDir}/build/sanitize",
-      "inherits": ["ci-linux", "dev-mode"],
+      "inherits": ["sanitize", "ci-linux", "dev-mode"],
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Sanitize",
         "CMAKE_CXX_FLAGS_SANITIZE": "-U_FORTIFY_SOURCE -O2 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-common"
       }
     },
