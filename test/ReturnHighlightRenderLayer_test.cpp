@@ -163,43 +163,39 @@ protected:
 		return allLines;
 	}
 
-	std::vector<DisassemblyTextLine> CollectLLILLines(const Ref<LowLevelILFunction>& llil)
+	template <typename ILFuncT, typename ApplyFn>
+	std::vector<DisassemblyTextLine> CollectILLines(const Ref<ILFuncT>& ilFunc, ApplyFn apply)
 	{
 		std::vector<DisassemblyTextLine> allLines;
-		for (const auto& block : llil->GetBasicBlocks())
+		for (const auto& block : ilFunc->GetBasicBlocks())
 		{
 			DisassemblySettings settings;
 			std::vector<DisassemblyTextLine> lines = block->GetDisassemblyText(&settings);
-			m_Layer.ApplyToLowLevelILBlock(block, lines);
+			apply(block, lines);
 			allLines.insert(allLines.end(), lines.begin(), lines.end());
 		}
 		return allLines;
+	}
+
+	std::vector<DisassemblyTextLine> CollectLLILLines(const Ref<LowLevelILFunction>& llil)
+	{
+		return CollectILLines(llil, [this](const Ref<BasicBlock>& block, std::vector<DisassemblyTextLine>& lines) {
+			m_Layer.ApplyToLowLevelILBlock(block, lines);
+		});
 	}
 
 	std::vector<DisassemblyTextLine> CollectMLILLines(const Ref<MediumLevelILFunction>& mlil)
 	{
-		std::vector<DisassemblyTextLine> allLines;
-		for (const auto& block : mlil->GetBasicBlocks())
-		{
-			DisassemblySettings settings;
-			std::vector<DisassemblyTextLine> lines = block->GetDisassemblyText(&settings);
+		return CollectILLines(mlil, [this](const Ref<BasicBlock>& block, std::vector<DisassemblyTextLine>& lines) {
 			m_Layer.ApplyToMediumLevelILBlock(block, lines);
-			allLines.insert(allLines.end(), lines.begin(), lines.end());
-		}
-		return allLines;
+		});
 	}
 
 	std::vector<DisassemblyTextLine> CollectHLILLines(const Ref<HighLevelILFunction>& hlil)
 	{
-		std::vector<DisassemblyTextLine> allLines;
-		for (const auto& block : hlil->GetBasicBlocks())
-		{
-			DisassemblySettings settings;
-			std::vector<DisassemblyTextLine> lines = block->GetDisassemblyText(&settings);
+		return CollectILLines(hlil, [this](const Ref<BasicBlock>& block, std::vector<DisassemblyTextLine>& lines) {
 			m_Layer.ApplyToHighLevelILBlock(block, lines);
-			allLines.insert(allLines.end(), lines.begin(), lines.end());
-		}
-		return allLines;
+		});
 	}
 };
 // NOLINTEND(misc-use-internal-linkage,cppcoreguidelines-non-private-member-variables-in-classes)

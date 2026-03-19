@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <set>
+#include <unordered_set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -121,17 +121,18 @@ namespace {
 		});
 	}
 
-	bool LlilInstructionIsExitPoint(const LowLevelILInstruction& instruction)
+	template <auto RetOp, auto TailcallOp, auto NoretOp, auto ConstPtrOp, auto... CallOps>
+	bool InstructionIsExitPoint(const auto& instruction)
 	{
 		const auto operation = instruction.operation;
-		if (operation == LLIL_RET || operation == LLIL_TAILCALL || operation == LLIL_NORET)
+		if (operation == RetOp || operation == TailcallOp || operation == NoretOp)
 		{
 			return true;
 		}
-		if (operation == LLIL_CALL)
+		if (((operation == CallOps) || ...))
 		{
 			auto dest = instruction.GetDestExpr();
-			if (dest.operation == LLIL_CONST_PTR)
+			if (dest.operation == ConstPtrOp)
 			{
 				if (IsNoreturnCallDest(static_cast<uint64_t>(dest.GetConstant()), instruction.function->GetFunction()))
 				{
@@ -140,48 +141,22 @@ namespace {
 			}
 		}
 		return false;
+	}
+
+	bool LlilInstructionIsExitPoint(const LowLevelILInstruction& instruction)
+	{
+		return InstructionIsExitPoint<LLIL_RET, LLIL_TAILCALL, LLIL_NORET, LLIL_CONST_PTR, LLIL_CALL>(instruction);
 	}
 
 	bool MlilInstructionIsExitPoint(const MediumLevelILInstruction& instruction)
 	{
-		const auto operation = instruction.operation;
-		if (operation == MLIL_RET || operation == MLIL_TAILCALL || operation == MLIL_NORET)
-		{
-			return true;
-		}
-		if (operation == MLIL_CALL || operation == MLIL_CALL_UNTYPED)
-		{
-			auto dest = instruction.GetDestExpr();
-			if (dest.operation == MLIL_CONST_PTR)
-			{
-				if (IsNoreturnCallDest(static_cast<uint64_t>(dest.GetConstant()), instruction.function->GetFunction()))
-				{
-					return true;
-				}
-			}
-		}
-		return false;
+		return InstructionIsExitPoint<MLIL_RET, MLIL_TAILCALL, MLIL_NORET, MLIL_CONST_PTR, MLIL_CALL,
+			MLIL_CALL_UNTYPED>(instruction);
 	}
 
 	bool HlilInstructionIsExitPoint(const HighLevelILInstruction& instruction)
 	{
-		const auto operation = instruction.operation;
-		if (operation == HLIL_RET || operation == HLIL_TAILCALL || operation == HLIL_NORET)
-		{
-			return true;
-		}
-		if (operation == HLIL_CALL)
-		{
-			auto dest = instruction.GetDestExpr();
-			if (dest.operation == HLIL_CONST_PTR)
-			{
-				if (IsNoreturnCallDest(static_cast<uint64_t>(dest.GetConstant()), instruction.function->GetFunction()))
-				{
-					return true;
-				}
-			}
-		}
-		return false;
+		return InstructionIsExitPoint<HLIL_RET, HLIL_TAILCALL, HLIL_NORET, HLIL_CONST_PTR, HLIL_CALL>(instruction);
 	}
 
 	bool LineContainsKeywordToken(const DisassemblyTextLine& line)
@@ -265,13 +240,28 @@ void ReturnHighlightRenderLayer::ApplyToDisassemblyBlock(Ref<BasicBlock> block, 
 
 	const uint64_t blockStart = block->GetStart();
 	const uint64_t blockEnd = block->GetEnd();
-	std::set<uint64_t> exitAddrs;
-	for (size_t i = 0; i < llil->GetInstructionCount(); i++)
+	std::unordered_set<uint64_t> exitAddrs;
+	for (const auto& llilBlock : llil->GetBasicBlocks())
 	{
-		auto instr = llil->GetInstruction(i);
-		if (instr.address >= blockStart && instr.address < blockEnd && LlilInstructionIsExitPoint(instr))
+		const size_t llilStart = llilBlock->GetStart();
+		const size_t llilEnd = llilBlock->GetEnd();
+		if (llilStart >= llilEnd)
 		{
-			exitAddrs.insert(instr.address);
+			continue;
+		}
+		const uint64_t firstAddr = llil->GetInstruction(llilStart).address;
+		const uint64_t lastAddr = llil->GetInstruction(llilEnd - 1).address;
+		if (lastAddr < blockStart || firstAddr >= blockEnd)
+		{
+			continue;
+		}
+		for (size_t i = llilStart; i < llilEnd; i++)
+		{
+			auto instr = llil->GetInstruction(i);
+			if (instr.address >= blockStart && instr.address < blockEnd && LlilInstructionIsExitPoint(instr))
+			{
+				exitAddrs.insert(instr.address);
+			}
 		}
 	}
 
