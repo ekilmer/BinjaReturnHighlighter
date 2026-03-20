@@ -46,6 +46,11 @@ Requires dev-mode AND a real Binary Ninja install (`BinaryNinjaCore` library). U
 
 Test binary: `test/data/simple` (compiled from `test/data/simple.c`).
 
+It is also important that the normal dev build also works because it runs important static analysis checks.
+
+    cmake --preset dev
+    cmake --build build
+
 ## Project structure
 
 - `source/` — plugin implementation
