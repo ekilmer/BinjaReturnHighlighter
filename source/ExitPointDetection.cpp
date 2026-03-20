@@ -11,6 +11,12 @@
 using namespace BinaryNinja;
 
 namespace {
+	template <typename T>
+	concept ILInstruction = requires(T instr) {
+		instr.operation;
+		instr.GetDestExpr();
+	};
+
 	bool IsNoreturnCallDest(uint64_t destAddr, const Ref<Function>& caller)
 	{
 		auto view = caller->GetView();
@@ -20,7 +26,7 @@ namespace {
 	}
 
 	template <auto RetOp, auto TailcallOp, auto NoretOp, auto ConstPtrOp, auto... CallOps>
-	bool InstructionIsExitPoint(const auto& instruction)
+	bool InstructionIsExitPoint(const ILInstruction auto& instruction)
 	{
 		const auto operation = instruction.operation;
 		if (operation == RetOp || operation == TailcallOp || operation == NoretOp)
