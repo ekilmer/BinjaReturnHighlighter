@@ -4,7 +4,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <unordered_set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -184,39 +183,8 @@ void ReturnHighlightRenderLayer::ApplyToDisassemblyBlock(Ref<BasicBlock> block, 
 	{
 		return;
 	}
-	auto llil = func->GetLowLevelIL();
-	if (!llil)
-	{
-		return;
-	}
 
-	const uint64_t blockStart = block->GetStart();
-	const uint64_t blockEnd = block->GetEnd();
-	std::unordered_set<uint64_t> exitAddrs;
-	for (const auto& llilBlock : llil->GetBasicBlocks())
-	{
-		const size_t llilStart = llilBlock->GetStart();
-		const size_t llilEnd = llilBlock->GetEnd();
-		if (llilStart >= llilEnd)
-		{
-			continue;
-		}
-		const uint64_t firstAddr = llil->GetInstruction(llilStart).address;
-		const uint64_t lastAddr = llil->GetInstruction(llilEnd - 1).address;
-		if (lastAddr < blockStart || firstAddr >= blockEnd)
-		{
-			continue;
-		}
-		for (size_t i = llilStart; i < llilEnd; i++)
-		{
-			auto instr = llil->GetInstruction(i);
-			if (instr.address >= blockStart && instr.address < blockEnd && LlilInstructionIsExitPoint(instr))
-			{
-				exitAddrs.insert(instr.address);
-			}
-		}
-	}
-
+	const auto exitAddrs = FindExitPointAddresses(func, block->GetStart(), block->GetEnd());
 	for (auto& line : lines)
 	{
 		if (exitAddrs.contains(line.addr))

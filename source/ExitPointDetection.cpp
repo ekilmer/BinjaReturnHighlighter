@@ -1,7 +1,9 @@
 #include "BinjaReturnHighlighter/ExitPointDetection.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <unordered_set>
 
 #include <binaryninjaapi.h>
 #include <binaryninjacore.h>
@@ -54,4 +56,38 @@ bool MlilInstructionIsExitPoint(const MediumLevelILInstruction& instruction)
 bool HlilInstructionIsExitPoint(const HighLevelILInstruction& instruction)
 {
 	return InstructionIsExitPoint<HLIL_RET, HLIL_TAILCALL, HLIL_NORET, HLIL_CONST_PTR, HLIL_CALL>(instruction);
+}
+
+std::unordered_set<uint64_t> FindExitPointAddresses(const Ref<Function>& func, uint64_t blockStart, uint64_t blockEnd)
+{
+	std::unordered_set<uint64_t> exitAddrs;
+	auto llil = func->GetLowLevelIL();
+	if (!llil)
+	{
+		return exitAddrs;
+	}
+	for (const auto& llilBlock : llil->GetBasicBlocks())
+	{
+		const size_t llilStart = llilBlock->GetStart();
+		const size_t llilEnd = llilBlock->GetEnd();
+		if (llilStart >= llilEnd)
+		{
+			continue;
+		}
+		const uint64_t firstAddr = llil->GetInstruction(llilStart).address;
+		const uint64_t lastAddr = llil->GetInstruction(llilEnd - 1).address;
+		if (lastAddr < blockStart || firstAddr >= blockEnd)
+		{
+			continue;
+		}
+		for (size_t i = llilStart; i < llilEnd; i++)
+		{
+			auto instr = llil->GetInstruction(i);
+			if (instr.address >= blockStart && instr.address < blockEnd && LlilInstructionIsExitPoint(instr))
+			{
+				exitAddrs.insert(instr.address);
+			}
+		}
+	}
+	return exitAddrs;
 }
