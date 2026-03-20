@@ -12,7 +12,7 @@ class ReturnHighlightRenderLayer final : public BinaryNinja::RenderLayer
 {
 	BinaryNinja::Ref<BinaryNinja::Logger> m_logger;
 	mutable std::string m_cachedColorSetting;
-	mutable BNHighlightColor m_cachedHighlight;
+	mutable BNHighlightColor m_cachedHighlight;  // Zero-init = no highlight until first valid setting
 
 	BNHighlightColor ResolveHighlightColor() const;
 
