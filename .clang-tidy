@@ -16,6 +16,7 @@ Checks: "*,\
   -llvm-include-order,\
   -llvm-prefer-static-over-anonymous-namespace,\
   -llvmlibc-*,\
+  -portability-avoid-pragma-once,\
   -modernize-use-nodiscard,\
   -modernize-use-trailing-return-type,\
   -misc-non-private-member-variables-in-classes"

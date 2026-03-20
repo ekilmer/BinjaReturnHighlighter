@@ -1,5 +1,4 @@
-#ifndef EXITPOINTDETECTION_HPP
-#define EXITPOINTDETECTION_HPP
+#pragma once
 
 #include <cstdint>
 #include <unordered_set>
@@ -15,5 +14,3 @@ bool HlilInstructionIsExitPoint(const BinaryNinja::HighLevelILInstruction& instr
 
 std::unordered_set<uint64_t> FindExitPointAddresses(
 	const BinaryNinja::Ref<BinaryNinja::Function>& func, uint64_t blockStart, uint64_t blockEnd);
-
-#endif  // EXITPOINTDETECTION_HPP

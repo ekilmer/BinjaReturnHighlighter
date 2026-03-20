@@ -1,5 +1,4 @@
-#ifndef TESTHELPERS_HPP
-#define TESTHELPERS_HPP
+#pragma once
 
 #include <cstdint>
 #include <string>
@@ -47,5 +46,3 @@ namespace TestHelpers {
 	};
 
 }  // namespace TestHelpers
-
-#endif  // TESTHELPERS_HPP

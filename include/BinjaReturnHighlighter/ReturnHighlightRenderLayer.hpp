@@ -1,5 +1,4 @@
-#ifndef RETURNHIGHLIGHTRENDERLAYER_HPP
-#define RETURNHIGHLIGHTRENDERLAYER_HPP
+#pragma once
 
 #include <string>
 #include <vector>
@@ -35,5 +34,3 @@ public:
 	void ApplyToHighLevelILBody(BinaryNinja::Ref<BinaryNinja::Function> function,
 		std::vector<BinaryNinja::LinearDisassemblyLine>& lines) override;
 };
-
-#endif  // RETURNHIGHLIGHTRENDERLAYER_HPP

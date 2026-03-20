@@ -1,6 +1,3 @@
-#ifndef COLORPICKERACTION_HPP
-#define COLORPICKERACTION_HPP
+#pragma once
 
 void RegisterColorPickerAction();
-
-#endif  // COLORPICKERACTION_HPP

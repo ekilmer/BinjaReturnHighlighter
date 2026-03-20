@@ -1,5 +1,4 @@
-#ifndef COLORDEFS_HPP
-#define COLORDEFS_HPP
+#pragma once
 
 #include <array>
 #include <cstdint>
@@ -37,5 +36,3 @@ constexpr const ColorDef* FindColorByName(std::string_view name)
 	}
 	return nullptr;
 }
-
-#endif  // COLORDEFS_HPP
