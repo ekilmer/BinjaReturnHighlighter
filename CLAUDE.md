@@ -71,6 +71,7 @@ It is also important that the normal dev build also works because it runs import
 - `test/` — GTest integration tests (link against real BinaryNinjaCore)
 - `external/binaryninja-api/` — git submodule
 - `cmake/` — lint and dev-mode modules
+- `DEVELOPING.md` — contributor guide (dev presets, testing, linting, sanitizers)
 
 ## Binary Ninja API reference
 
