@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <charconv>
 #include <optional>
-#include <stdexcept>
 #include <string>
+#include <string_view>
+#include <system_error>
 #include <vector>
 
 #include <binaryninjaapi.h>
@@ -48,27 +50,22 @@ namespace {
 	constexpr uint32_t ByteMask = 0xFF;
 	constexpr int HexBase = 16;
 
-	std::optional<RgbColor> ParseHexColor(const std::string& str)
+	std::optional<RgbColor> ParseHexColor(std::string_view str)
 	{
-		std::string hex = str;
-		if (!hex.empty() && hex.front() == '#')
+		if (!str.empty() && str.front() == '#')
 		{
-			hex = hex.substr(1);
+			str.remove_prefix(1);
 		}
-		if (hex.size() != HexColorLen)
+		if (str.size() != HexColorLen)
 		{
 			return std::nullopt;
 		}
 		uint32_t val = 0;
-		try
-		{
-			val = static_cast<uint32_t>(std::stoul(hex, nullptr, HexBase));
-		}
-		catch (const std::invalid_argument&)
-		{
-			return std::nullopt;
-		}
-		catch (const std::out_of_range&)
+		// std::from_chars requires raw pointers; this is bounded access on a string_view
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+		auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), val, HexBase);
+		// NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+		if (ec != std::errc {} || ptr != str.data() + str.size())
 		{
 			return std::nullopt;
 		}
@@ -77,7 +74,7 @@ namespace {
 			.b = static_cast<uint8_t>(val & ByteMask)};
 	}
 
-	std::optional<BNHighlightStandardColor> MapColorName(const std::string& name)
+	std::optional<BNHighlightStandardColor> MapColorName(std::string_view name)
 	{
 		if (const auto* def = FindColorByName(name))
 		{
