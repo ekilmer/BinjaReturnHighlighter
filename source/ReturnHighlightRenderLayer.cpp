@@ -172,7 +172,8 @@ BNHighlightColor ReturnHighlightRenderLayer::ResolveHighlightColor() const
 	return m_cachedHighlight;
 }
 
-void ReturnHighlightRenderLayer::ApplyToDisassemblyBlock(Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
+void ReturnHighlightRenderLayer::ApplyToDisassemblyBlock(
+	const Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
 {
 	const BNHighlightColor highlight = ResolveHighlightColor();
 	auto func = block->GetFunction();
@@ -206,7 +207,7 @@ void ReturnHighlightRenderLayer::ApplyToMediumLevelILBlock(
 }
 
 void ReturnHighlightRenderLayer::ApplyToHighLevelILBlock(
-	Ref<BasicBlock> const block, std::vector<DisassemblyTextLine>& lines)
+	const Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
 {
 	const BNHighlightColor highlight = ResolveHighlightColor();
 	HighlightExitPointLines(highlight, block->GetHighLevelILFunction(), lines, HlilInstructionIsExitPoint);
