@@ -21,9 +21,9 @@ using BinaryNinja::Settings;
 namespace {
 	QColor NameToQColor(const std::string& name)
 	{
-		if (auto def = FindColorByName(name))
+		if (const auto* def = FindColorByName(name))
 		{
-			return {(*def)->r, (*def)->g, (*def)->b};
+			return {def->r, def->g, def->b};
 		}
 		const auto& fallback = ColorDefs.front();
 		return {fallback.r, fallback.g, fallback.b};

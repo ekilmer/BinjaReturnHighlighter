@@ -79,9 +79,9 @@ namespace {
 
 	std::optional<BNHighlightStandardColor> MapColorName(const std::string& name)
 	{
-		if (auto def = FindColorByName(name))
+		if (const auto* def = FindColorByName(name))
 		{
-			return (*def)->bnColor;
+			return def->bnColor;
 		}
 		return std::nullopt;
 	}

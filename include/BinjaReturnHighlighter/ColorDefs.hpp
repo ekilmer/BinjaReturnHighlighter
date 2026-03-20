@@ -3,7 +3,6 @@
 
 #include <array>
 #include <cstdint>
-#include <optional>
 #include <string_view>
 
 #include <binaryninjacore.h>
@@ -27,7 +26,7 @@ constexpr std::array<ColorDef, 9> ColorDefs = {{
 	{.name = "black", .r = 0, .g = 0, .b = 0, .bnColor = BlackHighlightColor},
 }};
 
-constexpr std::optional<const ColorDef*> FindColorByName(std::string_view name)
+constexpr const ColorDef* FindColorByName(std::string_view name)
 {
 	for (const auto& def : ColorDefs)
 	{
@@ -36,7 +35,7 @@ constexpr std::optional<const ColorDef*> FindColorByName(std::string_view name)
 			return &def;
 		}
 	}
-	return std::nullopt;
+	return nullptr;
 }
 
 #endif  // COLORDEFS_HPP
