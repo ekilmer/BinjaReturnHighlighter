@@ -4,6 +4,7 @@ add_executable(ReturnHighlightRenderLayer_test)
 target_sources(
     ReturnHighlightRenderLayer_test
     PRIVATE
+        TestHelpers.cpp
         ReturnHighlightRenderLayer_test.cpp
 )
 

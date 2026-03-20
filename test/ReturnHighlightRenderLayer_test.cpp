@@ -1,3 +1,5 @@
+#include "TestHelpers.hpp"
+
 #include <BinjaReturnHighlighter/ReturnHighlightRenderLayer.hpp>
 
 #include <algorithm>
@@ -11,10 +13,9 @@
 #include <gtest/gtest.h>
 
 using namespace BinaryNinja;
+using namespace TestHelpers;
 
 namespace {
-
-	constexpr uint8_t FullAlpha = 255;
 
 	// Addresses from the test binary (test/data/simple, compiled from test/data/simple.c).
 	// _add: 0x100000410, ret at 0x10000042c
@@ -27,178 +28,79 @@ namespace {
 	constexpr uint64_t MainRetAddr = 0x10000046c;
 	constexpr uint64_t MainNonRetAddr = 0x100000454;
 
-	// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,bugprone-throwing-static-initialization)
-	Ref<BinaryView> GlobalBv;
-	// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,bugprone-throwing-static-initialization)
-
-	Ref<Function> FindFunctionByName(const std::string& name)
+	class ReturnHighlightTest : public ::testing::Test
 	{
-		for (const auto& func : GlobalBv->GetAnalysisFunctionList())
+	protected:
+		void TearDown() override { Settings::Instance()->Reset("returnHighlighter.highlightColor"); }
+
+		static Ref<Function> FindFunction(const std::string& name)
 		{
-			const Ref<Symbol> sym = func->GetSymbol();
-			if (sym != nullptr && (sym->GetFullName() == name || sym->GetShortName() == name))
+			Ref<Function> func = FindFunctionByName(name);
+			if (func == nullptr)
 			{
-				return func;
+				func = FindFunctionByName("_" + name);
 			}
+			return func;
 		}
-		return nullptr;
-	}
 
-	bool IsHighlightedWithColor(const DisassemblyTextLine& line, BNHighlightStandardColor expectedColor)
-	{
-		return line.highlight.style == StandardHighlightColor && line.highlight.color == expectedColor
-			&& line.highlight.alpha == FullAlpha;
-	}
-
-	bool IsHighlighted(const DisassemblyTextLine& line)
-	{
-		return IsHighlightedWithColor(line, BlueHighlightColor);
-	}
-
-	const DisassemblyTextLine* FindLineByAddr(const std::vector<DisassemblyTextLine>& lines, uint64_t addr)
-	{
-		const auto iter = std::ranges::find_if(lines, [addr](const DisassemblyTextLine& line) {
-			return line.addr == addr;
-		});
-		if (iter == lines.end())
+		std::vector<DisassemblyTextLine> CollectDisassemblyLines(const Ref<Function>& func)
 		{
-			return nullptr;
-		}
-		return &(*iter);
-	}
-
-	bool AnyLineHighlightedAtAddr(const std::vector<DisassemblyTextLine>& lines, uint64_t addr)
-	{
-		return std::ranges::any_of(lines, [addr](const DisassemblyTextLine& line) {
-			return line.addr == addr && IsHighlighted(line);
-		});
-	}
-
-	std::vector<LinearDisassemblyLine> BuildLinearLines(const Ref<Function>& func, const Ref<HighLevelILFunction>& hlil)
-	{
-		std::vector<LinearDisassemblyLine> linearLines;
-		for (const auto& block : hlil->GetBasicBlocks())
-		{
-			DisassemblySettings settings;
-			const std::vector<DisassemblyTextLine> blockLines = block->GetDisassemblyText(&settings);
-			for (const auto& line : blockLines)
+			std::vector<DisassemblyTextLine> allLines;
+			for (const auto& block : func->GetBasicBlocks())
 			{
-				LinearDisassemblyLine linearLine;
-				linearLine.type = CodeDisassemblyLineType;
-				linearLine.function = func;
-				linearLine.contents = line;
-				linearLines.push_back(linearLine);
+				DisassemblySettings settings;
+				std::vector<DisassemblyTextLine> lines = block->GetDisassemblyText(&settings);
+				m_layer.ApplyToDisassemblyBlock(block, lines);
+				allLines.insert(allLines.end(), lines.begin(), lines.end());
 			}
-		}
-		return linearLines;
-	}
-
-	class BinaryNinjaEnvironment : public ::testing::Environment
-	{
-	public:
-		void SetUp() override
-		{
-			const std::string installDir = BN_INSTALL_DIR;
-#ifdef __APPLE__
-			const std::string pluginDir = installDir + "/Contents/MacOS/plugins";
-#elif defined(_WIN32)
-			const std::string pluginDir = installDir + "/plugins";
-#else
-			const std::string pluginDir = installDir + "/plugins";
-#endif
-			SetBundledPluginDirectory(pluginDir);
-			InitPlugins();
-			RegisterReturnHighlighterSettings();
-			Settings::Instance()->LoadSettingsFile("", SettingsUserScope);
-
-			const std::string testBinary = TEST_DATA_DIR "simple";
-			const Ref<BinaryView> binaryView = BinaryNinja::Load(testBinary);
-			ASSERT_NE(binaryView, nullptr) << "Failed to load test binary: " << testBinary;
-			ASSERT_NE(binaryView->GetTypeName(), "Raw") << "Binary loaded as Raw view";
-			binaryView->UpdateAnalysisAndWait();
-			GlobalBv = binaryView;
+			return allLines;
 		}
 
-		void TearDown() override
+		template <typename ILFuncT, typename ApplyFn>
+		std::vector<DisassemblyTextLine> CollectILLines(const Ref<ILFuncT>& ilFunc, ApplyFn apply)
 		{
-			if (GlobalBv != nullptr)
+			std::vector<DisassemblyTextLine> allLines;
+			for (const auto& block : ilFunc->GetBasicBlocks())
 			{
-				GlobalBv->GetFile()->Close();
-				GlobalBv = nullptr;
+				DisassemblySettings settings;
+				std::vector<DisassemblyTextLine> lines = block->GetDisassemblyText(&settings);
+				apply(block, lines);
+				allLines.insert(allLines.end(), lines.begin(), lines.end());
 			}
-			BNShutdown();
+			return allLines;
 		}
+
+		std::vector<DisassemblyTextLine> CollectLLILLines(const Ref<LowLevelILFunction>& llil)
+		{
+			return CollectILLines(llil, [this](const Ref<BasicBlock>& block, std::vector<DisassemblyTextLine>& lines) {
+				m_layer.ApplyToLowLevelILBlock(block, lines);
+			});
+		}
+
+		std::vector<DisassemblyTextLine> CollectMLILLines(const Ref<MediumLevelILFunction>& mlil)
+		{
+			return CollectILLines(mlil, [this](const Ref<BasicBlock>& block, std::vector<DisassemblyTextLine>& lines) {
+				m_layer.ApplyToMediumLevelILBlock(block, lines);
+			});
+		}
+
+		std::vector<DisassemblyTextLine> CollectHLILLines(const Ref<HighLevelILFunction>& hlil)
+		{
+			return CollectILLines(hlil, [this](const Ref<BasicBlock>& block, std::vector<DisassemblyTextLine>& lines) {
+				m_layer.ApplyToHighLevelILBlock(block, lines);
+			});
+		}
+
+		void ApplyToHLILBody(const Ref<Function>& func, std::vector<LinearDisassemblyLine>& lines)
+		{
+			m_layer.ApplyToHighLevelILBody(func, lines);
+		}
+
+	private:
+		ReturnHighlightRenderLayer m_layer;
 	};
 
 }  // namespace
-
-// NOLINTBEGIN(misc-use-internal-linkage,cppcoreguidelines-non-private-member-variables-in-classes)
-class ReturnHighlightTest : public ::testing::Test
-{
-protected:
-	ReturnHighlightRenderLayer m_Layer;
-
-	void TearDown() override { Settings::Instance()->Reset("returnHighlighter.highlightColor"); }
-
-	static Ref<Function> FindFunction(const std::string& name)
-	{
-		Ref<Function> func = FindFunctionByName(name);
-		if (func == nullptr)
-		{
-			func = FindFunctionByName("_" + name);
-		}
-		return func;
-	}
-
-	std::vector<DisassemblyTextLine> CollectDisassemblyLines(const Ref<Function>& func)
-	{
-		std::vector<DisassemblyTextLine> allLines;
-		for (const auto& block : func->GetBasicBlocks())
-		{
-			DisassemblySettings settings;
-			std::vector<DisassemblyTextLine> lines = block->GetDisassemblyText(&settings);
-			m_Layer.ApplyToDisassemblyBlock(block, lines);
-			allLines.insert(allLines.end(), lines.begin(), lines.end());
-		}
-		return allLines;
-	}
-
-	template <typename ILFuncT, typename ApplyFn>
-	std::vector<DisassemblyTextLine> CollectILLines(const Ref<ILFuncT>& ilFunc, ApplyFn apply)
-	{
-		std::vector<DisassemblyTextLine> allLines;
-		for (const auto& block : ilFunc->GetBasicBlocks())
-		{
-			DisassemblySettings settings;
-			std::vector<DisassemblyTextLine> lines = block->GetDisassemblyText(&settings);
-			apply(block, lines);
-			allLines.insert(allLines.end(), lines.begin(), lines.end());
-		}
-		return allLines;
-	}
-
-	std::vector<DisassemblyTextLine> CollectLLILLines(const Ref<LowLevelILFunction>& llil)
-	{
-		return CollectILLines(llil, [this](const Ref<BasicBlock>& block, std::vector<DisassemblyTextLine>& lines) {
-			m_Layer.ApplyToLowLevelILBlock(block, lines);
-		});
-	}
-
-	std::vector<DisassemblyTextLine> CollectMLILLines(const Ref<MediumLevelILFunction>& mlil)
-	{
-		return CollectILLines(mlil, [this](const Ref<BasicBlock>& block, std::vector<DisassemblyTextLine>& lines) {
-			m_Layer.ApplyToMediumLevelILBlock(block, lines);
-		});
-	}
-
-	std::vector<DisassemblyTextLine> CollectHLILLines(const Ref<HighLevelILFunction>& hlil)
-	{
-		return CollectILLines(hlil, [this](const Ref<BasicBlock>& block, std::vector<DisassemblyTextLine>& lines) {
-			m_Layer.ApplyToHighLevelILBlock(block, lines);
-		});
-	}
-};
-// NOLINTEND(misc-use-internal-linkage,cppcoreguidelines-non-private-member-variables-in-classes)
 
 TEST_F(ReturnHighlightTest, LLILReturnHighlighted)
 {
@@ -266,7 +168,7 @@ TEST_F(ReturnHighlightTest, HLILBodyReturnHighlighted)
 	ASSERT_NE(hlil, nullptr);
 
 	std::vector<LinearDisassemblyLine> linearLines = BuildLinearLines(func, hlil);
-	m_Layer.ApplyToHighLevelILBody(func, linearLines);
+	ApplyToHLILBody(func, linearLines);
 
 	const auto retLine = std::ranges::find_if(linearLines, [](const LinearDisassemblyLine& line) {
 		return line.contents.addr == MainRetAddr;
@@ -422,6 +324,6 @@ auto main(int argc, char** argv) -> int
 {
 	::testing::InitGoogleTest(&argc, argv);
 	// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
-	::testing::AddGlobalTestEnvironment(new BinaryNinjaEnvironment());
+	::testing::AddGlobalTestEnvironment(new TestHelpers::BinaryNinjaEnvironment());
 	return RUN_ALL_TESTS();
 }
