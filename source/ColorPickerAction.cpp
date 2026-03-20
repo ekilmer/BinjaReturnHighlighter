@@ -55,6 +55,13 @@ void RegisterColorPickerAction()
 	UIAction::registerAction(actionName);
 
 	UIActionHandler::globalActions()->bindAction(actionName, UIAction([] {
+		auto refreshView = [] {
+			if (auto* ctx = UIContext::activeContext())
+			{
+				ctx->refreshCurrentViewContents();
+			}
+		};
+
 		QWidget* parent = nullptr;
 		UIContext* ctx = UIContext::activeContext();
 		if (ctx != nullptr)
@@ -69,16 +76,12 @@ void RegisterColorPickerAction()
 		dialog.setWindowTitle("Return Highlighter Color");
 		dialog.setOption(QColorDialog::DontUseNativeDialog);
 
-		QObject::connect(&dialog, &QColorDialog::currentColorChanged, [](const QColor& color) {
+		QObject::connect(&dialog, &QColorDialog::currentColorChanged, [&refreshView](const QColor& color) {
 			if (color.isValid())
 			{
 				const std::string hex = color.name().toStdString();
 				Settings::Instance()->Set("returnHighlighter.highlightColor", hex);
-
-				if (UIContext* activeCtx = UIContext::activeContext())
-				{
-					activeCtx->refreshCurrentViewContents();
-				}
+				refreshView();
 			}
 		});
 
@@ -97,10 +100,7 @@ void RegisterColorPickerAction()
 			Settings::Instance()->Set("returnHighlighter.highlightColor", originalSetting);
 		}
 
-		if (UIContext* activeCtx = UIContext::activeContext())
-		{
-			activeCtx->refreshCurrentViewContents();
-		}
+		refreshView();
 	}));
 
 	Menu::mainMenu("Plugins")->addAction(actionName, "Choose Color");
