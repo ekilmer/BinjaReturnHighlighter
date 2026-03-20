@@ -32,8 +32,8 @@ add_custom_target(
     VERBATIM
 )
 
-# Extract clang-tidy path from CMAKE_CXX_CLANG_TIDY (first element is the binary,
-# rest are flags like -warnings-as-errors=*) for consistency with build-time checks.
+# Extract clang-tidy path from CMAKE_CXX_CLANG_TIDY (first element is the binary)
+# for consistency with build-time checks.
 if(CMAKE_CXX_CLANG_TIDY)
   list(GET CMAKE_CXX_CLANG_TIDY 0 _tidy_default)
 else()

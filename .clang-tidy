@@ -19,7 +19,7 @@ Checks: "*,\
   -modernize-use-nodiscard,\
   -modernize-use-trailing-return-type,\
   -misc-non-private-member-variables-in-classes"
-WarningsAsErrors: ''
+WarningsAsErrors: '*'
 CheckOptions:
   - key: 'bugprone-argument-comment.StrictMode'
     value: 'true'

@@ -25,7 +25,7 @@ Create a `CMakeUserPresets.json` file (not versioned) with local development pre
       },
       "cacheVariables": {
         "BN_QT_DIR": "<path-to-qt>",
-        "CMAKE_CXX_CLANG_TIDY": "<path-to-clang-tidy>;-warnings-as-errors=*",
+        "CMAKE_CXX_CLANG_TIDY": "<path-to-clang-tidy>",
         "CMAKE_CXX_CPPCHECK": "cppcheck",
         "CMAKE_OSX_ARCHITECTURES": null,
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
