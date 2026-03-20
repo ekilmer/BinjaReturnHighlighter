@@ -57,6 +57,7 @@ It is also important that the normal dev build also works because it runs import
 - `source/` — plugin implementation
   - `plugin.cpp` — `CorePluginInit` entry point (registers RenderLayer)
   - `ui_plugin.cpp` — `UIPluginInit` entry point (color picker, only with Qt6)
+  - `ExitPointDetection.cpp` — exit-point detection (return/tailcall/noreturn)
   - `ReturnHighlightRenderLayer.cpp` — core highlight logic
   - `ColorPickerAction.cpp` — Qt color picker UI
 - `include/BinjaReturnHighlighter/` — public headers

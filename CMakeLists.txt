@@ -24,6 +24,7 @@ add_library(BinjaReturnHighlighter::core ALIAS BinjaReturnHighlighter_core)
 target_sources(
     BinjaReturnHighlighter_core
     PRIVATE
+        source/ExitPointDetection.cpp
         source/ReturnHighlightRenderLayer.cpp
 
     PUBLIC
@@ -31,6 +32,7 @@ target_sources(
     BASE_DIRS include
     FILES
         include/BinjaReturnHighlighter/ColorDefs.hpp
+        include/BinjaReturnHighlighter/ExitPointDetection.hpp
         include/BinjaReturnHighlighter/ReturnHighlightRenderLayer.hpp
 )
 
