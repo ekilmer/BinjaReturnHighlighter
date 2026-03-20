@@ -26,16 +26,23 @@ Install: `cmake --build build --target install`
 
 ## Lint
 
-clang-format via `.clang-format` (copied from binaryninja-api).
+clang-format via `.clang-format` (copied from binaryninja-api). clang-tidy via `.clang-tidy`.
 
-**Always run format-fix before building or testing:**
+**Always run tidy-fix and format-fix before building or testing:**
+
+    cmake --build build --target tidy-fix format-fix
+    cmake --build build
+
+Standalone format (no build directory needed):
 
     cmake -D FIX=YES -P cmake/lint.cmake
 
-Build-directory alternatives:
+All lint targets (require configured build directory):
 
-    cmake --build build --target format-fix      # auto-fix
-    cmake --build build --target format-check    # check only (CI)
+    cmake --build build --target format-fix      # auto-fix formatting
+    cmake --build build --target format-check    # check formatting (CI)
+    cmake --build build --target tidy-fix        # auto-fix clang-tidy issues
+    cmake --build build --target tidy-check      # check clang-tidy issues
 
 ## Test
 

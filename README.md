@@ -142,15 +142,31 @@ To run all hooks manually against the full repo:
 prek run --all-files
 ```
 
-### Format Code
+### Suggested Workflow
+
+Before building, auto-fix both clang-tidy and clang-format issues:
 
 ```bash
-cmake --build build --target format-fix
+cmake --build build --target tidy-fix format-fix
+cmake --build build
 ```
+
+The `tidy-fix` target runs clang-tidy with `--fix` on all project source files using the `compile_commands.json` from the build directory. Not all clang-tidy checks are auto-fixable — unfixable diagnostics will still be reported during the normal build.
+
+Available lint targets:
+
+| Target | Description |
+|--------|-------------|
+| `format-fix` | Auto-fix clang-format issues |
+| `format-check` | Check formatting without fixing (CI) |
+| `tidy-fix` | Auto-fix clang-tidy issues |
+| `tidy-check` | Check clang-tidy issues without fixing |
 
 ### Code Quality with cppcheck and clang-tidy
 
-Requires CMake 4.2.0+ for [`CMAKE_SKIP_LINTING`](https://cmake.org/cmake/help/latest/variable/CMAKE_SKIP_LINTING.html) so that we don't code quality checks on binaryninja-api repository code.
+Requires CMake 4.2.0+ for [`CMAKE_SKIP_LINTING`](https://cmake.org/cmake/help/latest/variable/CMAKE_SKIP_LINTING.html) so that we don't run code quality checks on binaryninja-api repository code.
+
+clang-tidy and cppcheck run automatically during compilation when configured via `CMAKE_CXX_CLANG_TIDY` and `CMAKE_CXX_CPPCHECK` (set in the dev preset). The `tidy-fix` and `tidy-check` targets provide standalone clang-tidy analysis independent of the build.
 
 ### Sanitizers
 

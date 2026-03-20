@@ -31,3 +31,45 @@ add_custom_target(
     COMMENT "Fixing the code"
     VERBATIM
 )
+
+# Extract clang-tidy path from CMAKE_CXX_CLANG_TIDY (first element is the binary,
+# rest are flags like -warnings-as-errors=*) for consistency with build-time checks.
+if(CMAKE_CXX_CLANG_TIDY)
+  list(GET CMAKE_CXX_CLANG_TIDY 0 _tidy_default)
+else()
+  set(_tidy_default clang-tidy)
+endif()
+set(TIDY_COMMAND "${_tidy_default}" CACHE STRING "clang-tidy binary to use")
+
+set(
+    TIDY_PATTERNS
+    source/*.cpp
+    test/*.cpp
+    CACHE STRING
+    "; separated patterns relative to the project source dir for clang-tidy"
+)
+
+add_custom_target(
+    tidy-check
+    COMMAND "${CMAKE_COMMAND}"
+    -D "TIDY_COMMAND=${TIDY_COMMAND}"
+    -D "PATTERNS=${TIDY_PATTERNS}"
+    -D "BUILD_DIR=${CMAKE_BINARY_DIR}"
+    -P "${PROJECT_SOURCE_DIR}/cmake/tidy.cmake"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    COMMENT "Checking clang-tidy diagnostics"
+    VERBATIM
+)
+
+add_custom_target(
+    tidy-fix
+    COMMAND "${CMAKE_COMMAND}"
+    -D "TIDY_COMMAND=${TIDY_COMMAND}"
+    -D "PATTERNS=${TIDY_PATTERNS}"
+    -D "BUILD_DIR=${CMAKE_BINARY_DIR}"
+    -D FIX=YES
+    -P "${PROJECT_SOURCE_DIR}/cmake/tidy.cmake"
+    WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+    COMMENT "Fixing clang-tidy diagnostics"
+    VERBATIM
+)
