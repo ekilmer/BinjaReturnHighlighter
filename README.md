@@ -93,7 +93,7 @@ Create a `CMakeUserPresets.json` file with the following (for macOS), assuming y
   "version": 2,
   "configurePresets": [
     {
-      "name": "dev-macos",
+      "name": "dev",
       "inherits": ["ci-macos-universal", "dev-mode", "common"],
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
@@ -157,7 +157,7 @@ Requires CMake 4.2.0+ for [`CMAKE_SKIP_LINTING`](https://cmake.org/cmake/help/la
 Build the plugin with the ASan preset and install it:
 
 ```bash
-cmake --preset dev-macos-asan
+cmake --preset asan
 cmake --build build-asan
 cmake --build build-asan --target install
 ```

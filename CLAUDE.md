@@ -9,11 +9,11 @@ CMake 4.2+ with vcpkg for dependencies (fmt, gtest). Presets in `CMakePresets.js
 Two local development presets (both require `VCPKG_ROOT`):
 
     # Normal dev build — clang-tidy + cppcheck, RelWithDebInfo → build/
-    cmake --preset dev-macos
+    cmake --preset dev
     cmake --build build
 
     # ASan build — address sanitizer for testing → build-asan/
-    cmake --preset dev-macos-asan
+    cmake --preset asan
     cmake --build build-asan
 
 Key CMake cache variables:
@@ -40,7 +40,7 @@ Standalone (no build dir needed):
 
 Requires dev-mode AND a real Binary Ninja install (`BinaryNinjaCore` library). Use the ASan build:
 
-    cmake --preset dev-macos-asan
+    cmake --preset asan
     cmake --build build-asan
     cd build-asan && ctest
 
