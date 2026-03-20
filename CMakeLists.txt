@@ -14,7 +14,7 @@ include(cmake/variables.cmake)
 
 add_subdirectory(external)
 
-# fmt is included as an example vcpkg dependency for template adopters
+# fmt is used for string formatting in log messages
 find_package(fmt REQUIRED)
 
 # ---- Core object library (shared between plugin and tests) ----
