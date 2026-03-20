@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <unordered_set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -27,7 +28,7 @@ void RegisterReturnHighlighterSettings()
 		"title": "Highlight Color",
 		"type": "string",
 		"default": "blue",
-		"description": "Color used to highlight return statements. Choose a preset or enter a custom hex color (e.g. #FF5500).",
+		"description": "Color used to highlight exit points (return statements and noreturn calls). Choose a preset or enter a custom hex color (e.g. #FF5500).",
 		"enum": ["blue", "green", "cyan", "red", "magenta", "yellow", "orange", "white", "black"],
 		"enumDescriptions": ["Blue", "Green", "Cyan", "Red", "Magenta", "Yellow", "Orange", "White", "Black"],
 		"ignore": ["SettingsProjectScope", "SettingsResourceScope"]
@@ -112,27 +113,63 @@ namespace {
 			.alpha = AlphaSolid};
 	}
 
-	bool LineContainsKeywordToken(DisassemblyTextLine& line)
+	bool IsNoreturnCallDest(uint64_t destAddr, const Ref<Function>& caller)
+	{
+		auto view = caller->GetView();
+		return std::ranges::any_of(view->GetAnalysisFunctionsForAddress(destAddr), [](const Ref<Function>& target) {
+			return !target->CanReturn().GetValue();
+		});
+	}
+
+	template <auto RetOp, auto TailcallOp, auto NoretOp, auto ConstPtrOp, auto... CallOps>
+	bool InstructionIsExitPoint(const auto& instruction)
+	{
+		const auto operation = instruction.operation;
+		if (operation == RetOp || operation == TailcallOp || operation == NoretOp)
+		{
+			return true;
+		}
+		if (((operation == CallOps) || ...))
+		{
+			auto dest = instruction.GetDestExpr();
+			if (dest.operation == ConstPtrOp)
+			{
+				if (IsNoreturnCallDest(static_cast<uint64_t>(dest.GetConstant()), instruction.function->GetFunction()))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	bool LlilInstructionIsExitPoint(const LowLevelILInstruction& instruction)
+	{
+		return InstructionIsExitPoint<LLIL_RET, LLIL_TAILCALL, LLIL_NORET, LLIL_CONST_PTR, LLIL_CALL>(instruction);
+	}
+
+	bool MlilInstructionIsExitPoint(const MediumLevelILInstruction& instruction)
+	{
+		return InstructionIsExitPoint<MLIL_RET, MLIL_TAILCALL, MLIL_NORET, MLIL_CONST_PTR, MLIL_CALL,
+			MLIL_CALL_UNTYPED>(instruction);
+	}
+
+	bool HlilInstructionIsExitPoint(const HighLevelILInstruction& instruction)
+	{
+		return InstructionIsExitPoint<HLIL_RET, HLIL_TAILCALL, HLIL_NORET, HLIL_CONST_PTR, HLIL_CALL>(instruction);
+	}
+
+	bool LineContainsKeywordToken(const DisassemblyTextLine& line)
 	{
 		return std::ranges::any_of(line.tokens, [](const auto& token) { return token.type == KeywordToken; });
 	}
 
-	bool LlilInstructionIsReturn(const LowLevelILInstruction& instruction)
+	bool LineContainsCallTarget(const DisassemblyTextLine& line)
 	{
-		const auto operation = instruction.operation;
-		return operation == LLIL_RET || operation == LLIL_TAILCALL;
-	}
-
-	bool MlilInstructionIsReturn(const MediumLevelILInstruction& instruction)
-	{
-		const auto operation = instruction.operation;
-		return operation == MLIL_RET || operation == MLIL_TAILCALL;
-	}
-
-	bool HlilInstructionIsReturn(const HighLevelILInstruction& instruction)
-	{
-		const auto operation = instruction.operation;
-		return operation == HLIL_RET || operation == HLIL_TAILCALL;
+		return std::ranges::any_of(line.tokens, [](const auto& token) {
+			return token.type == CodeRelativeAddressToken || token.type == CodeSymbolToken || token.type == ImportToken
+				|| token.type == IndirectImportToken;
+		});
 	}
 
 	DisassemblyTextLine& GetDisasmLine(DisassemblyTextLine& line)
@@ -144,15 +181,15 @@ namespace {
 		return line.contents;
 	}
 
-	template <typename ILFuncT, typename LineT, typename IsReturnFn>
-	void HighlightReturnLines(
-		BNHighlightColor highlight, const Ref<ILFuncT>& ilFunc, std::vector<LineT>& lines, IsReturnFn isReturn)
+	template <typename ILFuncT, typename LineT, typename IsExitPointFn>
+	void HighlightExitPointLines(
+		BNHighlightColor highlight, const Ref<ILFuncT>& ilFunc, std::vector<LineT>& lines, IsExitPointFn isExitPoint)
 	{
 		for (auto& line : lines)
 		{
 			DisassemblyTextLine& disasmLine = GetDisasmLine(line);
-			if (auto const instr = ilFunc->GetInstruction(disasmLine.instrIndex);
-				isReturn(instr) && LineContainsKeywordToken(disasmLine))
+			if (isExitPoint(ilFunc->GetInstruction(disasmLine.instrIndex))
+				&& (LineContainsKeywordToken(disasmLine) || LineContainsCallTarget(disasmLine)))
 			{
 				disasmLine.highlight = highlight;
 			}
@@ -187,30 +224,80 @@ BNHighlightColor ReturnHighlightRenderLayer::ResolveHighlightColor() const
 	return m_cachedHighlight;
 }
 
+void ReturnHighlightRenderLayer::ApplyToDisassemblyBlock(Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
+{
+	const BNHighlightColor highlight = ResolveHighlightColor();
+	auto func = block->GetFunction();
+	if (!func)
+	{
+		return;
+	}
+	auto llil = func->GetLowLevelIL();
+	if (!llil)
+	{
+		return;
+	}
+
+	const uint64_t blockStart = block->GetStart();
+	const uint64_t blockEnd = block->GetEnd();
+	std::unordered_set<uint64_t> exitAddrs;
+	for (const auto& llilBlock : llil->GetBasicBlocks())
+	{
+		const size_t llilStart = llilBlock->GetStart();
+		const size_t llilEnd = llilBlock->GetEnd();
+		if (llilStart >= llilEnd)
+		{
+			continue;
+		}
+		const uint64_t firstAddr = llil->GetInstruction(llilStart).address;
+		const uint64_t lastAddr = llil->GetInstruction(llilEnd - 1).address;
+		if (lastAddr < blockStart || firstAddr >= blockEnd)
+		{
+			continue;
+		}
+		for (size_t i = llilStart; i < llilEnd; i++)
+		{
+			auto instr = llil->GetInstruction(i);
+			if (instr.address >= blockStart && instr.address < blockEnd && LlilInstructionIsExitPoint(instr))
+			{
+				exitAddrs.insert(instr.address);
+			}
+		}
+	}
+
+	for (auto& line : lines)
+	{
+		if (exitAddrs.contains(line.addr))
+		{
+			line.highlight = highlight;
+		}
+	}
+}
+
 void ReturnHighlightRenderLayer::ApplyToLowLevelILBlock(
 	const Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
 {
 	const BNHighlightColor highlight = ResolveHighlightColor();
-	HighlightReturnLines(highlight, block->GetLowLevelILFunction(), lines, LlilInstructionIsReturn);
+	HighlightExitPointLines(highlight, block->GetLowLevelILFunction(), lines, LlilInstructionIsExitPoint);
 }
 
 void ReturnHighlightRenderLayer::ApplyToMediumLevelILBlock(
 	const Ref<BasicBlock> block, std::vector<DisassemblyTextLine>& lines)
 {
 	const BNHighlightColor highlight = ResolveHighlightColor();
-	HighlightReturnLines(highlight, block->GetMediumLevelILFunction(), lines, MlilInstructionIsReturn);
+	HighlightExitPointLines(highlight, block->GetMediumLevelILFunction(), lines, MlilInstructionIsExitPoint);
 }
 
 void ReturnHighlightRenderLayer::ApplyToHighLevelILBlock(
 	Ref<BasicBlock> const block, std::vector<DisassemblyTextLine>& lines)
 {
 	const BNHighlightColor highlight = ResolveHighlightColor();
-	HighlightReturnLines(highlight, block->GetHighLevelILFunction(), lines, HlilInstructionIsReturn);
+	HighlightExitPointLines(highlight, block->GetHighLevelILFunction(), lines, HlilInstructionIsExitPoint);
 }
 
 void ReturnHighlightRenderLayer::ApplyToHighLevelILBody(
 	const Ref<Function> function, std::vector<LinearDisassemblyLine>& lines)
 {
 	const BNHighlightColor highlight = ResolveHighlightColor();
-	HighlightReturnLines(highlight, function->GetHighLevelIL(), lines, HlilInstructionIsReturn);
+	HighlightExitPointLines(highlight, function->GetHighLevelIL(), lines, HlilInstructionIsExitPoint);
 }

@@ -78,7 +78,10 @@ jobs:
         echo "deb [arch=amd64 signed-by=/usr/share/keyrings/apt.llvm.org.asc] http://apt.llvm.org/noble/ llvm-toolchain-noble-22 main" | sudo tee /etc/apt/sources.list.d/llvm.list
         sudo apt-get --yes update
 
-        sudo apt-get install --yes --no-install-recommends cppcheck clang-tidy-22
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+        echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+        brew install cppcheck
+        sudo apt-get install --yes --no-install-recommends clang-tidy-22
         sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-22 900
 
         cppcheck --version
