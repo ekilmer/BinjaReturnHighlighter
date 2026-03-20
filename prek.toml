@@ -28,7 +28,7 @@ id = "build-dev"
 name = "Build (dev preset)"
 entry = "bash -c 'cmake --preset dev && cmake --build build'"
 language = "system"
-stages = ["pre-push"]
+stages = ["pre-commit"]
 always_run = true
 pass_filenames = false
 
@@ -37,6 +37,6 @@ id = "build-test-asan"
 name = "Build and test (asan preset)"
 entry = "bash -c 'cmake --preset asan && cmake --build build-asan && ctest --test-dir build-asan --output-on-failure'"
 language = "system"
-stages = ["pre-push"]
+stages = ["pre-commit"]
 always_run = true
 pass_filenames = false
