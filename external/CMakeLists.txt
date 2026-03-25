@@ -39,38 +39,60 @@ if(TARGET binaryninjaui AND Qt6_FOUND)
     target_include_directories(binaryninjaui_stub SYSTEM INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/binaryninja-api/ui")
 
     # On Windows, __declspec(dllimport) requires an import library (.lib).
-    # Generate stub implementations from UI headers and compile into a stub
-    # DLL whose .lib satisfies the MSVC linker.
+    # Generate stub implementations from UI headers, compile to .obj, then
+    # create an import .lib via lib.exe /DEF — no DLL linking needed.
     if(WIN32)
       find_package(Python3 COMPONENTS Interpreter REQUIRED)
       set(_ui_headers_dir "${CMAKE_CURRENT_SOURCE_DIR}/binaryninja-api/ui")
+      set(_stubs_dir "${CMAKE_CURRENT_LIST_DIR}/../cmake/stubs")
       file(GLOB _ui_headers "${_ui_headers_dir}/*.h")
 
+      # Step 1: Generate stub source from UI headers
       add_custom_command(
           OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ui_stubs.cpp"
           COMMAND ${Python3_EXECUTABLE}
-              "${CMAKE_CURRENT_LIST_DIR}/../cmake/stubs/generate_ui_stubs.py"
+              "${_stubs_dir}/generate_ui_stubs.py"
               "${_ui_headers_dir}"
               "${CMAKE_CURRENT_BINARY_DIR}"
-          DEPENDS
-              "${CMAKE_CURRENT_LIST_DIR}/../cmake/stubs/generate_ui_stubs.py"
-              ${_ui_headers}
+          DEPENDS "${_stubs_dir}/generate_ui_stubs.py" ${_ui_headers}
           COMMENT "Generating UI stubs from binaryninja-api headers"
       )
 
-      add_library(binaryninjaui_win_stub SHARED
+      # Step 2: Compile stubs to .obj (via OBJECT library, no DLL linking)
+      add_library(binaryninjaui_stubs_obj OBJECT
           "${CMAKE_CURRENT_BINARY_DIR}/ui_stubs.cpp")
-      target_link_libraries(binaryninjaui_win_stub PRIVATE
+      target_link_libraries(binaryninjaui_stubs_obj PRIVATE
           binaryninjaapi Qt6::Core Qt6::Gui Qt6::Widgets)
-      target_include_directories(binaryninjaui_win_stub PRIVATE "${_ui_headers_dir}")
-      # Allow unresolved symbols — the stub DLL is never loaded at runtime;
-      # we only need the import library (.lib) it produces. Missing symbols
-      # include constructors/destructors (skipped due to C2512) and Qt MOC
-      # functions (metaObject, qt_metacast, qt_metacall).
-      target_link_options(binaryninjaui_win_stub PRIVATE /FORCE:UNRESOLVED)
+      target_include_directories(binaryninjaui_stubs_obj PRIVATE
+          "${_ui_headers_dir}")
+
+      # Step 3: Create import library from the compiled .obj symbols.
+      # Uses dumpbin to extract exported symbol names, writes a .def file,
+      # then lib.exe /DEF creates the import .lib — no DLL linking needed.
+      set(_implib "${CMAKE_CURRENT_BINARY_DIR}/binaryninjaui.lib")
+      add_custom_target(binaryninjaui_win_stub_gen ALL
+          # dumpbin extracts symbol table; Python script filters to exports
+          COMMAND dumpbin /SYMBOLS "$<TARGET_OBJECTS:binaryninjaui_stubs_obj>"
+              > "${CMAKE_CURRENT_BINARY_DIR}/symbols.txt"
+          COMMAND ${Python3_EXECUTABLE} "${_stubs_dir}/extract_exports.py"
+              "${CMAKE_CURRENT_BINARY_DIR}/symbols.txt"
+              "${CMAKE_CURRENT_BINARY_DIR}/binaryninjaui.def"
+              binaryninjaui
+          COMMAND lib
+              /DEF:"${CMAKE_CURRENT_BINARY_DIR}/binaryninjaui.def"
+              /OUT:"${_implib}"
+              /MACHINE:X64
+          DEPENDS binaryninjaui_stubs_obj "${_stubs_dir}/extract_exports.py"
+          COMMENT "Creating binaryninjaui import library from stubs"
+          BYPRODUCTS "${_implib}"
+          VERBATIM
+      )
+
+      # Step 4: IMPORTED target for the generated import library
+      add_library(binaryninjaui_win_stub SHARED IMPORTED)
       set_target_properties(binaryninjaui_win_stub PROPERTIES
-          OUTPUT_NAME binaryninjaui
-          ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+          IMPORTED_IMPLIB "${_implib}")
+      add_dependencies(binaryninjaui_win_stub binaryninjaui_win_stub_gen)
     endif()
   endif()
 endif()
