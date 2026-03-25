@@ -221,12 +221,19 @@ def parse_method_declaration(decl: str, class_name: str, bases: list[str] | None
     # For operator overloads, the "method name" includes "operator..."
     # For regular methods, it's the last identifier before '('
 
+    # Classes without base classes but with non-default-constructible members.
+    # These cause C2512 on MSVC even though they have no base classes.
+    _SKIP_CTORS = {"RenderContext", "FontParameters"}
+
     if is_constructor or is_destructor:
-        # Skip constructors/destructors entirely. Many classes have bases or
-        # members without default constructors, causing C2512 on MSVC. The
-        # missing exports don't affect the plugin — if a specific constructor
-        # is needed, the linker error will identify it.
-        return None
+        # Only generate ctors/dtors for classes without base classes and
+        # without known problematic members.
+        if bases or class_name in _SKIP_CTORS:
+            return None
+        if is_constructor:
+            return f"{class_name}::{class_name}{params_clean} {{ std::abort(); }}"
+        else:
+            return f"{class_name}::~{class_name}{params_clean} {{ std::abort(); }}"
     else:
         # Split before_paren into return_type and method_name
         # Method name is after the last space (but handle operator overloads)
