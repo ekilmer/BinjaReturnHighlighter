@@ -66,31 +66,39 @@ target_link_libraries(BinjaReturnHighlighter_plugin PUBLIC BinjaReturnHighlighte
 
 # ---- Optional UI support (Qt6 color picker) ----
 
+# Use the real binaryninjaui if linkable, otherwise fall back to the stub
+# created in external/CMakeLists.txt for stubs+Qt builds.
 if(TARGET binaryninjaui)
   get_target_property(_bn_ui_type binaryninjaui TYPE)
   if(NOT _bn_ui_type STREQUAL "UTILITY")
-    find_package(Qt6 COMPONENTS Core Gui Widgets QUIET)
-    if(Qt6_FOUND)
-        set_target_properties(BinjaReturnHighlighter_plugin PROPERTIES AUTOMOC ON)
+    set(_bn_ui_target binaryninjaui)
+  elseif(TARGET binaryninjaui_stub)
+    set(_bn_ui_target binaryninjaui_stub)
+  endif()
+endif()
 
-        target_sources(
-            BinjaReturnHighlighter_plugin
-            PRIVATE
-                source/ColorPickerAction.cpp
-                source/ui_plugin.cpp
+if(_bn_ui_target)
+  find_package(Qt6 COMPONENTS Core Gui Widgets QUIET)
+  if(Qt6_FOUND)
+    set_target_properties(BinjaReturnHighlighter_plugin PROPERTIES AUTOMOC ON)
 
-            PUBLIC
-            FILE_SET HEADERS
-            BASE_DIRS include
-            FILES
-                include/BinjaReturnHighlighter/ColorPickerAction.hpp
-        )
+    target_sources(
+        BinjaReturnHighlighter_plugin
+        PRIVATE
+            source/ColorPickerAction.cpp
+            source/ui_plugin.cpp
 
-        target_link_libraries(
-            BinjaReturnHighlighter_plugin
-            PUBLIC binaryninjaui Qt6::Core Qt6::Gui Qt6::Widgets
-        )
-    endif()
+        PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS include
+        FILES
+            include/BinjaReturnHighlighter/ColorPickerAction.hpp
+    )
+
+    target_link_libraries(
+        BinjaReturnHighlighter_plugin
+        PUBLIC ${_bn_ui_target} Qt6::Core Qt6::Gui Qt6::Widgets
+    )
   endif()
 endif()
 
