@@ -21,11 +21,19 @@ from pathlib import Path
 
 
 def strip_comments(text: str) -> str:
-    """Remove C and C++ comments."""
+    """Remove C and C++ comments, and DEMO_EDITION conditional blocks."""
     # Remove block comments (non-greedy)
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
     # Remove line comments
     text = re.sub(r"//[^\n]*", "", text)
+    # Remove #ifdef DEMO_EDITION ... #endif blocks (may contain declarations
+    # that don't exist in non-demo builds)
+    text = re.sub(
+        r"#\s*ifdef\s+DEMO_EDITION\b.*?#\s*endif[^\n]*",
+        "",
+        text,
+        flags=re.DOTALL,
+    )
     return text
 
 
@@ -46,15 +54,31 @@ def extract_classes(text: str, header_name: str) -> list:
     """Find all BINARYNINJAUIAPI class/struct declarations and their bodies."""
     classes = []
     pattern = re.compile(
-        r"(class|struct)\s+BINARYNINJAUIAPI\s+(\w+)[^{]*\{"
-    )
+        r"(class|struct)\s+BINARYNINJAUIAPI\s+(\w+)(.*?)\{"
+    , re.DOTALL)
     for match in pattern.finditer(text):
         kind = match.group(1)
         name = match.group(2)
+        inheritance = match.group(3).strip()
         body_start = match.end()
         body_end = find_matching_brace(text, body_start)
         body = text[body_start : body_end - 1]
-        classes.append((name, kind, body, header_name))
+
+        # Extract base classes from inheritance clause
+        bases = []
+        if ":" in inheritance:
+            after_colon = inheritance.split(":", 1)[1]
+            # Parse comma-separated base specifiers: "public Base1, public Base2"
+            for base_spec in after_colon.split(","):
+                base_spec = base_spec.strip()
+                # Remove access specifier (public/protected/private/virtual)
+                base_name = re.sub(
+                    r"^(virtual\s+)?(public|protected|private)\s+", "", base_spec
+                ).strip()
+                if base_name:
+                    bases.append(base_name)
+
+        classes.append((name, kind, body, header_name, bases))
     return classes
 
 
@@ -88,7 +112,7 @@ def strip_default_args(params: str) -> str:
     return "".join(result)
 
 
-def parse_method_declaration(decl: str, class_name: str) -> str | None:
+def parse_method_declaration(decl: str, class_name: str, bases: list[str] | None = None) -> str | None:
     """Transform a method declaration into an out-of-line stub definition.
 
     Returns None if the declaration should be skipped.
@@ -197,10 +221,12 @@ def parse_method_declaration(decl: str, class_name: str) -> str | None:
     # For operator overloads, the "method name" includes "operator..."
     # For regular methods, it's the last identifier before '('
 
-    if is_constructor:
-        return f"{class_name}::{class_name}{params_clean} {{ std::abort(); }}"
-    elif is_destructor:
-        return f"{class_name}::~{class_name}{params_clean} {{ std::abort(); }}"
+    if is_constructor or is_destructor:
+        # Skip constructors/destructors entirely. Many classes have bases or
+        # members without default constructors, causing C2512 on MSVC. The
+        # missing exports don't affect the plugin — if a specific constructor
+        # is needed, the linker error will identify it.
+        return None
     else:
         # Split before_paren into return_type and method_name
         # Method name is after the last space (but handle operator overloads)
@@ -230,7 +256,7 @@ def parse_method_declaration(decl: str, class_name: str) -> str | None:
             )
 
 
-def parse_class_methods(class_name: str, body: str) -> list[str]:
+def parse_class_methods(class_name: str, body: str, bases: list[str] | None = None) -> list[str]:
     """Extract method declarations from a class body and generate stubs."""
     stubs = []
     depth = 0
@@ -281,7 +307,7 @@ def parse_class_methods(class_name: str, body: str) -> list[str]:
             decl = current_decl.split(";")[0].strip()
             current_decl = ""
 
-            stub = parse_method_declaration(decl + ";", class_name)
+            stub = parse_method_declaration(decl + ";", class_name, bases)
             if stub is not None:
                 stubs.append(stub)
         elif "{" in current_decl:
@@ -332,8 +358,8 @@ def main():
         )
 
         total_stubs = 0
-        for class_name, kind, body, header_name in all_classes:
-            stubs = parse_class_methods(class_name, body)
+        for class_name, kind, body, header_name, bases in all_classes:
+            stubs = parse_class_methods(class_name, body, bases)
             if stubs:
                 f.write(f"// {kind} {class_name} ({header_name})\n")
                 for stub in stubs:
