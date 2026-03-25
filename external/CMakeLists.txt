@@ -69,23 +69,19 @@ if(TARGET binaryninjaui AND Qt6_FOUND)
       # Step 3: Create import library from the compiled .obj symbols.
       # Uses dumpbin to extract exported symbol names, writes a .def file,
       # then lib.exe /DEF creates the import .lib — no DLL linking needed.
+      set(_def_file "${CMAKE_CURRENT_BINARY_DIR}/binaryninjaui.def")
       set(_implib "${CMAKE_CURRENT_BINARY_DIR}/binaryninjaui.lib")
+      set(_symbols_file "${CMAKE_CURRENT_BINARY_DIR}/symbols.txt")
       add_custom_target(binaryninjaui_win_stub_gen ALL
           # dumpbin extracts symbol table; Python script filters to exports
-          COMMAND dumpbin /SYMBOLS "$<TARGET_OBJECTS:binaryninjaui_stubs_obj>"
-              > "${CMAKE_CURRENT_BINARY_DIR}/symbols.txt"
-          COMMAND ${Python3_EXECUTABLE} "${_stubs_dir}/extract_exports.py"
-              "${CMAKE_CURRENT_BINARY_DIR}/symbols.txt"
-              "${CMAKE_CURRENT_BINARY_DIR}/binaryninjaui.def"
-              binaryninjaui
-          COMMAND lib
-              /DEF:"${CMAKE_CURRENT_BINARY_DIR}/binaryninjaui.def"
-              /OUT:"${_implib}"
-              /MACHINE:X64
-          DEPENDS binaryninjaui_stubs_obj "${_stubs_dir}/extract_exports.py"
+          COMMAND dumpbin /SYMBOLS $<TARGET_OBJECTS:binaryninjaui_stubs_obj>
+              > ${_symbols_file}
+          COMMAND ${Python3_EXECUTABLE} ${_stubs_dir}/extract_exports.py
+              ${_symbols_file} ${_def_file} binaryninjaui
+          COMMAND lib /DEF:${_def_file} /OUT:${_implib} /MACHINE:X64
+          DEPENDS binaryninjaui_stubs_obj ${_stubs_dir}/extract_exports.py
           COMMENT "Creating binaryninjaui import library from stubs"
-          BYPRODUCTS "${_implib}"
-          VERBATIM
+          BYPRODUCTS ${_implib}
       )
 
       # Step 4: IMPORTED target for the generated import library
