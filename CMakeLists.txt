@@ -67,17 +67,19 @@ target_link_libraries(BinjaReturnHighlighter_plugin PUBLIC BinjaReturnHighlighte
 # ---- Optional UI support (Qt6 color picker) ----
 
 # Use the real binaryninjaui if linkable, otherwise fall back to the stub
-# created in external/CMakeLists.txt for stubs+Qt builds.
+# created in external/CMakeLists.txt for stubs+Qt builds. The stub is
+# compile-only: it provides UI headers but skips linking against
+# libbinaryninjaui, which is resolved at runtime by Binary Ninja.
 if(TARGET binaryninjaui)
   get_target_property(_bn_ui_type binaryninjaui TYPE)
   if(NOT _bn_ui_type STREQUAL "UTILITY")
-    set(_bn_ui_target binaryninjaui)
+    set(_bn_ui_link binaryninjaui)
   elseif(TARGET binaryninjaui_stub)
-    set(_bn_ui_target binaryninjaui_stub)
+    set(_bn_ui_link "$<COMPILE_ONLY:binaryninjaui_stub>")
   endif()
 endif()
 
-if(_bn_ui_target)
+if(_bn_ui_link)
   find_package(Qt6 COMPONENTS Core Gui Widgets QUIET)
   if(Qt6_FOUND)
     set_target_properties(BinjaReturnHighlighter_plugin PROPERTIES AUTOMOC ON)
@@ -97,7 +99,7 @@ if(_bn_ui_target)
 
     target_link_libraries(
         BinjaReturnHighlighter_plugin
-        PUBLIC ${_bn_ui_target} Qt6::Core Qt6::Gui Qt6::Widgets
+        PUBLIC ${_bn_ui_link} Qt6::Core Qt6::Gui Qt6::Widgets
     )
   endif()
 endif()
