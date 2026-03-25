@@ -76,6 +76,7 @@ if(TARGET binaryninjaui)
     set(_bn_ui_link binaryninjaui)
   elseif(TARGET binaryninjaui_stub)
     set(_bn_ui_link "$<COMPILE_ONLY:binaryninjaui_stub>")
+    set(_bn_ui_is_stub TRUE)
   endif()
 endif()
 
@@ -101,6 +102,13 @@ if(_bn_ui_link)
         BinjaReturnHighlighter_plugin
         PUBLIC ${_bn_ui_link} Qt6::Core Qt6::Gui Qt6::Widgets
     )
+
+    # When using the stub, UI symbols (UIAction, Menu, UIContext, etc.) are
+    # resolved at runtime by Binary Ninja. macOS requires an explicit flag
+    # to allow undefined symbols; Linux allows them by default in shared libs.
+    if(_bn_ui_is_stub AND APPLE)
+      target_link_options(BinjaReturnHighlighter_plugin PRIVATE -undefined dynamic_lookup)
+    endif()
   endif()
 endif()
 
