@@ -84,10 +84,12 @@ if(TARGET binaryninjaui AND Qt6_FOUND)
           BYPRODUCTS ${_implib}
       )
 
-      # Step 4: IMPORTED target for the generated import library
-      add_library(binaryninjaui_win_stub SHARED IMPORTED)
+      # Step 4: IMPORTED target for the generated import library.
+      # Use UNKNOWN type (works for any library kind) and IMPORTED_LOCATION
+      # which multi-config generators resolve without needing per-config props.
+      add_library(binaryninjaui_win_stub UNKNOWN IMPORTED)
       set_target_properties(binaryninjaui_win_stub PROPERTIES
-          IMPORTED_IMPLIB "${_implib}")
+          IMPORTED_LOCATION "${_implib}")
       add_dependencies(binaryninjaui_win_stub binaryninjaui_win_stub_gen)
     endif()
   endif()
