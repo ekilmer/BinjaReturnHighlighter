@@ -37,5 +37,35 @@ if(TARGET binaryninjaui AND Qt6_FOUND)
     add_library(binaryninjaui_stub INTERFACE)
     target_link_libraries(binaryninjaui_stub INTERFACE binaryninjaapi)
     target_include_directories(binaryninjaui_stub SYSTEM INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/binaryninja-api/ui")
+
+    # On Windows, __declspec(dllimport) requires an import library (.lib).
+    # Generate stub implementations from UI headers and compile into a stub
+    # DLL whose .lib satisfies the MSVC linker.
+    if(WIN32)
+      find_package(Python3 COMPONENTS Interpreter REQUIRED)
+      set(_ui_headers_dir "${CMAKE_CURRENT_SOURCE_DIR}/binaryninja-api/ui")
+      file(GLOB _ui_headers "${_ui_headers_dir}/*.h")
+
+      add_custom_command(
+          OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ui_stubs.cpp"
+          COMMAND ${Python3_EXECUTABLE}
+              "${CMAKE_CURRENT_LIST_DIR}/../cmake/stubs/generate_ui_stubs.py"
+              "${_ui_headers_dir}"
+              "${CMAKE_CURRENT_BINARY_DIR}"
+          DEPENDS
+              "${CMAKE_CURRENT_LIST_DIR}/../cmake/stubs/generate_ui_stubs.py"
+              ${_ui_headers}
+          COMMENT "Generating UI stubs from binaryninja-api headers"
+      )
+
+      add_library(binaryninjaui_win_stub SHARED
+          "${CMAKE_CURRENT_BINARY_DIR}/ui_stubs.cpp")
+      target_link_libraries(binaryninjaui_win_stub PRIVATE
+          binaryninjaapi Qt6::Core Qt6::Gui Qt6::Widgets)
+      target_include_directories(binaryninjaui_win_stub PRIVATE "${_ui_headers_dir}")
+      set_target_properties(binaryninjaui_win_stub PROPERTIES
+          OUTPUT_NAME binaryninjaui
+          ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+    endif()
   endif()
 endif()
