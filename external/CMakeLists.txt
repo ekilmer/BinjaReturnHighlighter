@@ -18,12 +18,7 @@ set(CMAKE_SKIP_LINTING ON)
 # Make the binaryninja-api code available
 # When Qt6 is found, build with UI support so binaryninjaui target is created.
 # Otherwise, build headless (for tests and headless environments).
-#
-# Set BN_QT_DIR to the Binary Ninja Qt installation (e.g. .../qt/Qt/6.10.1/clang_64)
-# to ensure the plugin links against the same Qt that Binary Ninja ships.
-if(BN_QT_DIR)
-  list(PREPEND CMAKE_PREFIX_PATH "${BN_QT_DIR}")
-endif()
+# Set Qt6_ROOT to point find_package at Binary Ninja's Qt fork.
 find_package(Qt6 COMPONENTS Core Gui Widgets QUIET)
 if(Qt6_FOUND)
   set(HEADLESS OFF)
@@ -31,3 +26,71 @@ else()
   set(HEADLESS ON)
 endif()
 add_subdirectory(binaryninja-api EXCLUDE_FROM_ALL SYSTEM)
+
+# When building with stubs (no BN install), the API creates binaryninjaui as a
+# UTILITY target that cannot be linked. If Qt was found, create a separate
+# interface target providing headers and Qt linkage so UI code compiles.
+# The real libbinaryninjaui is resolved at runtime via @rpath.
+if(TARGET binaryninjaui AND Qt6_FOUND)
+  get_target_property(_bn_ui_type binaryninjaui TYPE)
+  if(_bn_ui_type STREQUAL "UTILITY")
+    add_library(binaryninjaui_stub INTERFACE)
+    target_link_libraries(binaryninjaui_stub INTERFACE binaryninjaapi)
+    target_include_directories(binaryninjaui_stub SYSTEM INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/binaryninja-api/ui")
+
+    # On Windows, __declspec(dllimport) requires an import library (.lib).
+    # Generate stub implementations from UI headers, compile to .obj, then
+    # create an import .lib via lib.exe /DEF — no DLL linking needed.
+    if(WIN32)
+      find_package(Python3 COMPONENTS Interpreter REQUIRED)
+      set(_ui_headers_dir "${CMAKE_CURRENT_SOURCE_DIR}/binaryninja-api/ui")
+      set(_stubs_dir "${CMAKE_CURRENT_LIST_DIR}/../cmake/stubs")
+      file(GLOB _ui_headers "${_ui_headers_dir}/*.h")
+
+      # Step 1: Generate stub source from UI headers
+      add_custom_command(
+          OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/ui_stubs.cpp"
+          COMMAND ${Python3_EXECUTABLE}
+              "${_stubs_dir}/generate_ui_stubs.py"
+              "${_ui_headers_dir}"
+              "${CMAKE_CURRENT_BINARY_DIR}"
+          DEPENDS "${_stubs_dir}/generate_ui_stubs.py" ${_ui_headers}
+          COMMENT "Generating UI stubs from binaryninja-api headers"
+      )
+
+      # Step 2: Compile stubs to .obj (via OBJECT library, no DLL linking)
+      add_library(binaryninjaui_stubs_obj OBJECT
+          "${CMAKE_CURRENT_BINARY_DIR}/ui_stubs.cpp")
+      target_link_libraries(binaryninjaui_stubs_obj PRIVATE
+          binaryninjaapi Qt6::Core Qt6::Gui Qt6::Widgets)
+      target_include_directories(binaryninjaui_stubs_obj PRIVATE
+          "${_ui_headers_dir}")
+
+      # Step 3: Create import library from the compiled .obj symbols.
+      # Uses dumpbin to extract exported symbol names, writes a .def file,
+      # then lib.exe /DEF creates the import .lib — no DLL linking needed.
+      set(_def_file "${CMAKE_CURRENT_BINARY_DIR}/binaryninjaui.def")
+      set(_implib "${CMAKE_CURRENT_BINARY_DIR}/binaryninjaui.lib")
+      set(_symbols_file "${CMAKE_CURRENT_BINARY_DIR}/symbols.txt")
+      add_custom_target(binaryninjaui_win_stub_gen ALL
+          # dumpbin extracts symbol table; Python script filters to exports
+          COMMAND dumpbin /SYMBOLS $<TARGET_OBJECTS:binaryninjaui_stubs_obj>
+              > ${_symbols_file}
+          COMMAND ${Python3_EXECUTABLE} ${_stubs_dir}/extract_exports.py
+              ${_symbols_file} ${_def_file} binaryninjaui
+          COMMAND lib /DEF:${_def_file} /OUT:${_implib} /MACHINE:X64
+          DEPENDS binaryninjaui_stubs_obj ${_stubs_dir}/extract_exports.py
+          COMMENT "Creating binaryninjaui import library from stubs"
+          BYPRODUCTS ${_implib}
+      )
+
+      # Step 4: IMPORTED target for the generated import library.
+      # Use UNKNOWN type (works for any library kind) and IMPORTED_LOCATION
+      # which multi-config generators resolve without needing per-config props.
+      add_library(binaryninjaui_win_stub UNKNOWN IMPORTED)
+      set_target_properties(binaryninjaui_win_stub PROPERTIES
+          IMPORTED_LOCATION "${_implib}")
+      add_dependencies(binaryninjaui_win_stub binaryninjaui_win_stub_gen)
+    endif()
+  endif()
+endif()

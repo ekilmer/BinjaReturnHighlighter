@@ -66,7 +66,27 @@ target_link_libraries(BinjaReturnHighlighter_plugin PUBLIC BinjaReturnHighlighte
 
 # ---- Optional UI support (Qt6 color picker) ----
 
+# Use the real binaryninjaui if linkable, otherwise fall back to the stub
+# created in external/CMakeLists.txt for stubs+Qt builds. The stub is
+# compile-only: it provides UI headers but skips linking against
+# libbinaryninjaui, which is resolved at runtime by Binary Ninja.
 if(TARGET binaryninjaui)
+  get_target_property(_bn_ui_type binaryninjaui TYPE)
+  if(NOT _bn_ui_type STREQUAL "UTILITY")
+    set(_bn_ui_link binaryninjaui)
+  elseif(TARGET binaryninjaui_stub)
+    set(_bn_ui_is_stub TRUE)
+    if(WIN32 AND TARGET binaryninjaui_win_stub)
+      # On Windows, link against the stub DLL's import library for dllimport
+      set(_bn_ui_link binaryninjaui_stub binaryninjaui_win_stub)
+    else()
+      # On Unix, compile-only (symbols resolved at runtime)
+      set(_bn_ui_link "$<COMPILE_ONLY:binaryninjaui_stub>")
+    endif()
+  endif()
+endif()
+
+if(_bn_ui_link)
   find_package(Qt6 COMPONENTS Core Gui Widgets QUIET)
   if(Qt6_FOUND)
     set_target_properties(BinjaReturnHighlighter_plugin PROPERTIES AUTOMOC ON)
@@ -86,8 +106,15 @@ if(TARGET binaryninjaui)
 
     target_link_libraries(
         BinjaReturnHighlighter_plugin
-        PUBLIC binaryninjaui Qt6::Core Qt6::Gui Qt6::Widgets
+        PUBLIC ${_bn_ui_link} Qt6::Core Qt6::Gui Qt6::Widgets
     )
+
+    # When using the stub, UI symbols (UIAction, Menu, UIContext, etc.) are
+    # resolved at runtime by Binary Ninja. macOS requires an explicit flag
+    # to allow undefined symbols; Linux allows them by default in shared libs.
+    if(_bn_ui_is_stub AND APPLE)
+      target_link_options(BinjaReturnHighlighter_plugin PRIVATE -undefined dynamic_lookup)
+    endif()
   endif()
 endif()
 

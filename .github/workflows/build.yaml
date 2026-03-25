@@ -8,6 +8,9 @@ on:
 
 permissions: {}
 
+env:
+  BN_QT_VERSION: "6.10.1"
+
 jobs:
   lint:
     runs-on: ubuntu-24.04
@@ -115,11 +118,36 @@ jobs:
 
     - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
 
+    - name: Install Vector35 Qt6
+      shell: bash
+      run: |
+        QT_VER="${{ env.BN_QT_VERSION }}"
+        QT_INSTALL="$GITHUB_WORKSPACE/qt-install"
+
+        if [ "${{ matrix.config.name }}" == "windows" ]; then
+          curl -L -o qt6.zip "https://github.com/Vector35/qt-artifacts/releases/download/$QT_VER/qt$QT_VER-win64.zip"
+          7z x qt6.zip -o"$QT_INSTALL"
+          BN_QT_DIR="$QT_INSTALL/Qt/$QT_VER/msvc2022_64"
+        elif [ "${{ matrix.config.name }}" == "macos" ]; then
+          curl -L -o qt6.zip "https://github.com/Vector35/qt-artifacts/releases/download/$QT_VER/qt$QT_VER-macosx.zip"
+          unzip qt6.zip -d "$QT_INSTALL"
+          BN_QT_DIR="$QT_INSTALL/Qt/$QT_VER/clang_64"
+        elif [ "${{ matrix.config.name }}" == "ubuntu" ]; then
+          sudo apt-get update -y
+          sudo apt-get install -y qt6-base-dev
+          curl -L -o qt6.zip "https://github.com/Vector35/qt-artifacts/releases/download/$QT_VER/qt$QT_VER-linux.zip"
+          unzip qt6.zip -d "$QT_INSTALL"
+          BN_QT_DIR="$QT_INSTALL/Qt/$QT_VER/gcc_64"
+        fi
+        rm -f qt6.zip
+        echo "Qt6_ROOT=$BN_QT_DIR" >> "$GITHUB_ENV"
+
     - name: Configure CMake
       env:
         VCPKG_BINARY_SOURCES: clear;nuget,${{ env.NUGET_FEED_URL }},readwrite
       run: cmake --log-level=DEBUG
             --preset ci-${{matrix.config.name}}
+            -DQt6_ROOT="${{ env.Qt6_ROOT }}"
             -DBN_USER_PLUGINS_DIR="${{ github.workspace }}/install-plugin"
 
     - name: Build
