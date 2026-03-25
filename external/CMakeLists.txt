@@ -63,6 +63,11 @@ if(TARGET binaryninjaui AND Qt6_FOUND)
       target_link_libraries(binaryninjaui_win_stub PRIVATE
           binaryninjaapi Qt6::Core Qt6::Gui Qt6::Widgets)
       target_include_directories(binaryninjaui_win_stub PRIVATE "${_ui_headers_dir}")
+      # Allow unresolved symbols — the stub DLL is never loaded at runtime;
+      # we only need the import library (.lib) it produces. Missing symbols
+      # include constructors/destructors (skipped due to C2512) and Qt MOC
+      # functions (metaObject, qt_metacast, qt_metacall).
+      target_link_options(binaryninjaui_win_stub PRIVATE /FORCE:UNRESOLVED)
       set_target_properties(binaryninjaui_win_stub PROPERTIES
           OUTPUT_NAME binaryninjaui
           ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
